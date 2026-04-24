@@ -105,51 +105,49 @@
 
 ## Traceability
 
-*(Populated during roadmap creation)*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INIT-01 | — | Pending |
-| INIT-02 | — | Pending |
-| INIT-03 | — | Pending |
-| INIT-04 | — | Pending |
-| SPC-01 | — | Pending |
-| SPC-02 | — | Pending |
-| SPC-03 | — | Pending |
-| SPC-04 | — | Pending |
-| PAGE-01 | — | Pending |
-| PAGE-02 | — | Pending |
-| PAGE-03 | — | Pending |
-| PAGE-04 | — | Pending |
-| PAGE-05 | — | Pending |
-| PAGE-06 | — | Pending |
-| PAGE-07 | — | Pending |
-| PAGE-08 | — | Pending |
-| BLOG-01 | — | Pending |
-| BLOG-02 | — | Pending |
-| BLOG-03 | — | Pending |
-| BLOG-04 | — | Pending |
-| CMNT-01 | — | Pending |
-| CMNT-02 | — | Pending |
-| ATTCH-01 | — | Pending |
-| ATTCH-02 | — | Pending |
-| ATTCH-03 | — | Pending |
-| TUI-01 | — | Pending |
-| TUI-02 | — | Pending |
-| TUI-03 | — | Pending |
-| TUI-04 | — | Pending |
-| TUI-05 | — | Pending |
-| TUI-06 | — | Pending |
-| OUT-01 | — | Pending |
-| OUT-02 | — | Pending |
-| OUT-03 | — | Pending |
-| OUT-04 | — | Pending |
+| INIT-01 | Phase 1 | Pending |
+| INIT-02 | Phase 1 | Pending |
+| INIT-03 | Phase 1 | Pending |
+| INIT-04 | Phase 1 | Pending |
+| OUT-01 | Phase 1 | Pending |
+| OUT-02 | Phase 1 | Pending |
+| OUT-03 | Phase 1 | Pending |
+| OUT-04 | Phase 1 | Pending |
+| TUI-01 | Phase 2 | Pending |
+| TUI-02 | Phase 2 | Pending |
+| TUI-03 | Phase 2 | Pending |
+| TUI-04 | Phase 2 | Pending |
+| TUI-05 | Phase 2 | Pending |
+| TUI-06 | Phase 2 | Pending |
+| SPC-01 | Phase 2 | Pending |
+| SPC-02 | Phase 2 | Pending |
+| SPC-03 | Phase 2 | Pending |
+| SPC-04 | Phase 2 | Pending |
+| PAGE-01 | Phase 3 | Pending |
+| PAGE-02 | Phase 4 | Pending |
+| PAGE-03 | Phase 3 | Pending |
+| PAGE-04 | Phase 3 | Pending |
+| PAGE-05 | Phase 3 | Pending |
+| PAGE-06 | Phase 3 | Pending |
+| PAGE-07 | Phase 3 | Pending |
+| PAGE-08 | Phase 3 | Pending |
+| BLOG-01 | Phase 3 | Pending |
+| BLOG-02 | Phase 3 | Pending |
+| BLOG-03 | Phase 3 | Pending |
+| BLOG-04 | Phase 3 | Pending |
+| CMNT-01 | Phase 4 | Pending |
+| CMNT-02 | Phase 4 | Pending |
+| ATTCH-01 | Phase 4 | Pending |
+| ATTCH-02 | Phase 4 | Pending |
+| ATTCH-03 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 35 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 35 ⚠️
+- Mapped to phases: 35
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-24*
-*Last updated: 2026-04-24 after initial definition*
+*Last updated: 2026-04-24 after roadmap creation*
