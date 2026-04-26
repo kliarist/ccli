@@ -34,11 +34,7 @@ async fn run() -> anyhow::Result<()> {
     let cli = <Cli as clap::Parser>::parse();
 
     match cli.command {
-        Commands::Init => {
-            // Plan 05 replaces this stub with: cli::init::run(&cli).await
-            eprintln!("ccli init: handler not yet wired (Plan 05)");
-            Ok(())
-        }
+        Commands::Init => cli::init::run(&cli).await,
     }
 }
 
