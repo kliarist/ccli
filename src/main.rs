@@ -1,0 +1,125 @@
+use tracing_subscriber::EnvFilter;
+
+mod api;
+
+use api::error::AppError;
+
+#[tokio::main]
+async fn main() {
+    // RUST_LOG-driven tracing init (D-05). Default to `warn` if RUST_LOG unset.
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("warn"))
+        )
+        .init();
+
+    if let Err(err) = run().await {
+        // Walk the full anyhow chain so any `.context("...")` wrapper does not
+        // defeat AppError category dispatch (D-04). If no AppError is in the
+        // chain, fall back to AppError::Api with the top-level message.
+        let app_err = err.chain().find_map(|e| e.downcast_ref::<AppError>())
+            .cloned()
+            .unwrap_or_else(|| AppError::Api(err.to_string()));
+        handle_error(&app_err);
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> anyhow::Result<()> {
+    // Plan 04 wires Cli::parse(); Plan 05 dispatches to cli::init::run.
+    // For Plan 01 the binary is a no-op that exits cleanly.
+    Ok(())
+}
+
+/// Pure mapping from AppError variant -> remediation hint string.
+///
+/// Exposed (crate-private) so unit tests can verify category dispatch
+/// without spinning up stderr capture. This is the heart of D-04.
+fn hint_for(err: &AppError) -> &'static str {
+    match err {
+        AppError::Auth(_) => "Run 'ccli init' to reconfigure your credentials.",
+        AppError::Network(_) => "Check that your Confluence instance is reachable.",
+        AppError::Config(_) => "Run 'ccli init' to set up your configuration.",
+        AppError::Api(_) => "Check your Confluence instance status.",
+    }
+}
+
+/// Two-line stderr error format per D-04:
+///   line 1: `Error: <message>`
+///   line 2: remediation hint (from hint_for)
+fn handle_error(err: &AppError) {
+    eprintln!("Error: {}", err);
+    eprintln!("{}", hint_for(err));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hint_for_auth_returns_init_credentials_message() {
+        assert_eq!(
+            hint_for(&AppError::Auth("x".into())),
+            "Run 'ccli init' to reconfigure your credentials."
+        );
+    }
+
+    #[test]
+    fn hint_for_network_returns_reachable_message() {
+        assert_eq!(
+            hint_for(&AppError::Network("x".into())),
+            "Check that your Confluence instance is reachable."
+        );
+    }
+
+    #[test]
+    fn hint_for_config_returns_init_setup_message() {
+        assert_eq!(
+            hint_for(&AppError::Config("x".into())),
+            "Run 'ccli init' to set up your configuration."
+        );
+    }
+
+    #[test]
+    fn hint_for_api_returns_status_message() {
+        assert_eq!(
+            hint_for(&AppError::Api("x".into())),
+            "Check your Confluence instance status."
+        );
+    }
+
+    /// Closes the loop on B-02: the chain walk used in main() must recover
+    /// the inner AppError even when anyhow::Context has wrapped it. If this
+    /// test fails, every `.context("...")` call in downstream plans would
+    /// silently demote category dispatch to the Api fallback hint.
+    #[test]
+    fn chain_walk_recovers_inner_app_error_through_context_wrapper() {
+        use anyhow::Context;
+        let inner = AppError::Auth("bad token".into());
+        let wrapped: anyhow::Error =
+            Err::<(), _>(inner).context("wrapper layer").unwrap_err();
+
+        let recovered: Option<AppError> = wrapped
+            .chain()
+            .find_map(|e| e.downcast_ref::<AppError>())
+            .cloned();
+
+        match recovered {
+            Some(AppError::Auth(msg)) => assert_eq!(msg, "bad token"),
+            other => panic!("expected AppError::Auth recovered through chain, got {:?}", other),
+        }
+    }
+
+    /// Sanity check: when there is NO AppError anywhere in the chain, the
+    /// fallback to AppError::Api(err.to_string()) is what main() will use.
+    #[test]
+    fn chain_walk_returns_none_when_no_app_error_present() {
+        let plain: anyhow::Error = anyhow::anyhow!("just a string error");
+        let recovered: Option<AppError> = plain
+            .chain()
+            .find_map(|e| e.downcast_ref::<AppError>())
+            .cloned();
+        assert!(recovered.is_none(), "plain anyhow error should not yield an AppError");
+    }
+}

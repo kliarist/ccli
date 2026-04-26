@@ -1,0 +1,25 @@
+[package]
+name = "ccli"
+version = "0.1.0"
+edition = "2021"
+description = "Confluence Data Center CLI"
+
+[[bin]]
+name = "ccli"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.13", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1"
+anyhow = "1"
+thiserror = "2"
+dialoguer = { version = "0.12", features = ["password"] }
+comfy-table = "7"
+is-terminal = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+home = "0.5"
