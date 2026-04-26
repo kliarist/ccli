@@ -12,14 +12,20 @@ A developer can find, read, and edit any Confluence page from the terminal as fl
 
 ### Validated
 
-(None yet — ship to validate)
+**Authentication & Config (Phase 1)**
+- [x] User can authenticate with a Confluence Data Center instance via Personal Access Token (PAT) — Validated in Phase 01: foundation
+- [x] User runs `ccli init` to configure instance URL and token interactively on first run — Validated in Phase 01: foundation
+- [x] Config is persisted to `~/.config/ccli/config.toml` — Validated in Phase 01: foundation
+
+**Output & UX — Core (Phase 1)**
+- [x] Non-interactive output defaults to formatted table (columns, human-readable) — Validated in Phase 01: foundation
+- [x] `--plain` flag outputs tab-separated rows for piping — Validated in Phase 01: foundation
+- [x] `--no-headers` flag suppresses column headers — Validated in Phase 01: foundation
 
 ### Active
 
 **Authentication & Config**
-- [ ] User can authenticate with a Confluence Data Center instance via Personal Access Token (PAT)
-- [ ] User runs `ccli init` to configure instance URL and token interactively on first run
-- [ ] Config is persisted to `~/.config/ccli/config.toml`
+*(moved to Validated above)*
 
 **Spaces**
 - [ ] User can list all accessible spaces in a TUI list view
@@ -51,10 +57,8 @@ A developer can find, read, and edit any Confluence page from the terminal as fl
 - [ ] User can upload a file as an attachment to a page
 
 **Output & UX**
-- [ ] Non-interactive output defaults to formatted table (columns, human-readable)
-- [ ] `--plain` flag outputs tab-separated rows for piping
-- [ ] `--no-headers` flag suppresses column headers
 - [ ] TUI supports keyboard navigation: arrow keys, `/` to filter, `o` to open in browser, `q` to quit
+*(Core output flags validated in Phase 01 — see Validated above)*
 
 ### Out of Scope
 
@@ -85,11 +89,11 @@ A developer can find, read, and edit any Confluence page from the terminal as fl
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Rust over Go | Single binary distribution, memory safety, performance — and differentiates from jira-cli (Go) | — Pending |
-| PAT auth only | Simplest correct auth for DC 9.x; OAuth 1.0a is complex and rarely needed | — Pending |
-| Raw XML editing | Markdown-to-storage conversion is lossy and complex to maintain for all macro types | — Pending |
-| jira-cli UX model | Proven terminal UX for Atlassian tooling; users familiar with jira-cli will onboard instantly | — Pending |
-| Binary name `ccli` | Short, memorable, unambiguous — mirrors `jira` from jira-cli | — Pending |
+| Rust over Go | Single binary distribution, memory safety, performance — and differentiates from jira-cli (Go) | Confirmed — Phase 1 binary compiles to single static executable, 80 tests pass |
+| PAT auth only | Simplest correct auth for DC 9.x; OAuth 1.0a is complex and rarely needed | Confirmed — Phase 1 PAT flow verified end-to-end |
+| Raw XML editing | Markdown-to-storage conversion is lossy and complex to maintain for all macro types | — Pending (Phase 3) |
+| jira-cli UX model | Proven terminal UX for Atlassian tooling; users familiar with jira-cli will onboard instantly | — Pending (Phase 2 TUI) |
+| Binary name `ccli` | Short, memorable, unambiguous — mirrors `jira` from jira-cli | Confirmed — binary name set in Cargo.toml |
 
 ## Evolution
 
@@ -109,4 +113,9 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-24 after initialization*
+## Current State
+
+Phase 01 (foundation) complete — Rust binary skeleton, config management, output formatting, Confluence API client, and `ccli init` interactive setup all implemented and verified. 80 unit tests passing.
+
+---
+*Last updated: 2026-04-26 — Phase 01: foundation complete*
