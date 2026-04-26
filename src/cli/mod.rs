@@ -8,6 +8,8 @@ use clap::{Parser, Subcommand};
 
 use crate::output::{parse_columns, OutputConfig};
 
+pub mod init;
+
 /// `ccli` — Confluence Data Center CLI.
 #[derive(Parser, Debug)]
 #[command(
