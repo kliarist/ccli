@@ -1,6 +1,9 @@
 use tracing_subscriber::EnvFilter;
 
 mod api;
+mod cli;
+mod config;
+mod output;
 
 use api::error::AppError;
 
