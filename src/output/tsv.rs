@@ -12,6 +12,7 @@ use std::io::{self, Write};
 /// `col_indices` selects which columns of each row to print, in the order listed.
 /// `headers` is already filtered/ordered to match `col_indices` by the caller
 /// (see `OutputFormatter::resolve_columns`).
+#[allow(dead_code)]
 pub fn render(
     headers: &[String],
     col_indices: &[usize],

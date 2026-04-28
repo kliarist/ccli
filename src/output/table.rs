@@ -8,6 +8,7 @@ use comfy_table::presets::UTF8_FULL_CONDENSED;
 use comfy_table::{ContentArrangement, Table};
 
 /// Render headers + rows as an aligned table to stdout.
+#[allow(dead_code)]
 pub fn render(
     headers: &[String],
     col_indices: &[usize],

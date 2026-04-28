@@ -19,6 +19,7 @@ use crate::api::error::AppError;
 
 // ─── Serde structs ────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct SpaceListResponse {
     pub results: Vec<Space>,
@@ -29,12 +30,14 @@ pub struct SpaceListResponse {
     pub links: SpaceListLinks,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SpaceListLinks {
     pub next: Option<String>, // present when more pages exist (A2)
     pub base: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct Space {
     pub id: u64,
@@ -46,6 +49,7 @@ pub struct Space {
     pub links: SpaceLinks,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct SpaceLinks {
     pub webui: Option<String>, // relative path e.g. "/display/DEV" — Pitfall 3
@@ -53,6 +57,7 @@ pub struct SpaceLinks {
     pub self_url: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct SpaceDetail {
     pub id: u64,
@@ -71,12 +76,14 @@ pub struct SpaceDescription {
     pub plain: Option<PlainBody>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct PlainBody {
     pub value: Option<String>,
     pub representation: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct SpaceHomepage {
     pub id: Option<String>,

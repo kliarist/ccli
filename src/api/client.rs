@@ -29,6 +29,7 @@ use crate::config::Config;
 pub struct Client {
     inner: ReqwestClient,
     base_url: String,
+    #[allow(dead_code)]
     accepts_invalid_certs: bool,
 }
 
@@ -47,6 +48,7 @@ impl Client {
     /// Whether this client was built with `danger_accept_invalid_certs(true)`.
     /// Public read-only accessor — useful for tests and for warning the user
     /// in debug logs when CCLI_INSECURE is active.
+    #[allow(dead_code)]
     pub fn accepts_invalid_certs(&self) -> bool {
         self.accepts_invalid_certs
     }

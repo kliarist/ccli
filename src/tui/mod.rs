@@ -23,12 +23,10 @@ pub mod screens;
 use std::time::Duration;
 
 use anyhow::Context;
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyEventKind};
 use tokio::sync::oneshot;
 
-use crate::api::client::Client;
-use crate::api::space::{get_space_detail, list_all_spaces, resolve_webui_url, Space};
-use crate::api::error::AppError;
+use crate::api::{get_space_detail, list_all_spaces, resolve_webui_url, AppError, Client, Space};
 use crate::config;
 use crate::tui::app::{App, KeyAction};
 use crate::tui::screens::spaces::render_spaces;

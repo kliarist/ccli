@@ -17,8 +17,7 @@ use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config as NucleoConfig, Matcher};
 use ratatui::widgets::ListState;
 
-use crate::api::error::AppError;
-use crate::api::space::{Space, SpaceDetail};
+use crate::api::{AppError, Space, SpaceDetail};
 
 /// Spinner frames — text-only ASCII, 8 frames at 100ms interval (UI-SPEC Loading State).
 pub const SPINNER_FRAMES: &[&str] = &["◐", "◓", "◑", "◒", "◐", "◓", "◑", "◒"];
@@ -349,6 +348,7 @@ impl App {
     }
 
     /// Get the Space at a filtered list position (for render).
+    #[allow(dead_code)]
     pub fn space_at_filtered_index(&self, idx: usize) -> Option<&Space> {
         let space_idx = self.filtered_indices.get(idx)?;
         self.spaces.get(*space_idx)
