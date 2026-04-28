@@ -54,7 +54,7 @@
 - [ ] **TUI-02**: TUI supports `/` to activate fuzzy search/filter within a list
 - [ ] **TUI-03**: TUI displays a content preview pane alongside the list pane (split view)
 - [ ] **TUI-04**: TUI supports `o` keybinding to open the selected item in the system browser
-- [ ] **TUI-05**: TUI supports `q` or `Esc` to quit or go back
+- [x] **TUI-05**: TUI supports `q` or `Esc` to quit or go back
 - [ ] **TUI-06**: TUI displays a key-binding help bar at the bottom of the screen
 
 ### Output Formatting
@@ -119,7 +119,7 @@
 | TUI-02 | Phase 2 | Pending |
 | TUI-03 | Phase 2 | Pending |
 | TUI-04 | Phase 2 | Pending |
-| TUI-05 | Phase 2 | Pending |
+| TUI-05 | Phase 2 | Complete |
 | TUI-06 | Phase 2 | Pending |
 | SPC-01 | Phase 2 | Complete |
 | SPC-02 | Phase 2 | Pending |
