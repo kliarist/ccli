@@ -13,7 +13,7 @@ ccli is built in four coarse phases. Phase 1 lays the Rust project skeleton, API
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation** - Rust project skeleton, Confluence API client, PAT auth, `ccli init`, and output formatting flags
-- [ ] **Phase 2: TUI Shell & Spaces** - Ratatui TUI with full keyboard navigation, delivered through the Spaces feature end-to-end
+- [x] **Phase 2: TUI Shell & Spaces** - Ratatui TUI with full keyboard navigation, delivered through the Spaces feature end-to-end (completed 2026-04-28)
 - [ ] **Phase 3: Pages & Blog Posts** - List, view, create, and edit Pages and Blog Posts — the core content workflow
 - [ ] **Phase 4: Comments, Attachments & Search** - Page-level comments and attachments, plus CQL search across spaces
 
@@ -46,7 +46,7 @@ Plans:
 - [x] 02-02-PLAN.md — Wire non-interactive CLI: SpaceArgs/SpaceCommands in cli/mod.rs, ccli space list handler, main.rs Option<Commands> dispatch
 - [x] 02-03-PLAN.md — Implement src/tui/app.rs — App state machine, fuzzy filter (nucleo), debounce/cache, key handlers
 - [x] 02-04-PLAN.md — Implement src/tui/screens/spaces.rs — pure render function with all widget states
-- [ ] 02-05-PLAN.md — Replace tui/mod.rs stub with complete event loop + human-verify checkpoint
+- [x] 02-05-PLAN.md — Replace tui/mod.rs stub with complete event loop + human-verify checkpoint
 **UI hint**: yes
 
 ### Phase 3: Pages & Blog Posts
@@ -80,6 +80,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/? | Not started | - |
-| 2. TUI Shell & Spaces | 4/5 | In Progress|  |
+| 2. TUI Shell & Spaces | 5/5 | Complete   | 2026-04-28 |
 | 3. Pages & Blog Posts | 0/? | Not started | - |
 | 4. Comments, Attachments & Search | 0/? | Not started | - |
