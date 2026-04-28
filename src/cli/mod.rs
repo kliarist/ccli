@@ -9,6 +9,7 @@ use clap::{Parser, Subcommand};
 use crate::output::{parse_columns, OutputConfig};
 
 pub mod init;
+pub mod space;
 
 /// `ccli` — Confluence Data Center CLI.
 #[derive(Parser, Debug)]
@@ -33,16 +34,31 @@ pub struct Cli {
     pub columns: Option<String>,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Configure Confluence URL and Personal Access Token interactively.
     Init,
-    // Phase 2 will add: Space(SpaceArgs)
+    /// List and browse Confluence spaces.
+    Space(SpaceArgs),
     // Phase 3 will add: Page(PageArgs), Blog(BlogArgs)
     // Phase 4 will add: Comment(...), Attachment(...)
+}
+
+/// Arguments for the `space` subcommand group.
+#[derive(clap::Args, Debug)]
+pub struct SpaceArgs {
+    #[command(subcommand)]
+    pub command: SpaceCommands,
+}
+
+/// Subcommands under `ccli space`.
+#[derive(Subcommand, Debug)]
+pub enum SpaceCommands {
+    /// Print all accessible spaces as a formatted table.
+    List,
 }
 
 impl Cli {
@@ -65,7 +81,7 @@ mod tests {
     #[test]
     fn parses_init_subcommand() {
         let cli = Cli::try_parse_from(["ccli", "init"]).expect("parse");
-        assert!(matches!(cli.command, Commands::Init));
+        assert!(matches!(cli.command, Some(Commands::Init)));
         assert!(!cli.plain);
         assert!(!cli.no_headers);
         assert!(cli.columns.is_none());
@@ -97,9 +113,16 @@ mod tests {
     }
 
     #[test]
-    fn missing_subcommand_errors() {
+    fn no_subcommand_launches_tui() {
         let result = Cli::try_parse_from(["ccli"]);
-        assert!(result.is_err(), "clap should require a subcommand");
+        assert!(result.is_ok(), "bare ccli should parse successfully — D-10 launches TUI");
+        assert!(result.unwrap().command.is_none(), "command must be None when no subcommand given");
+    }
+
+    #[test]
+    fn space_list_subcommand_parses() {
+        let cli = Cli::try_parse_from(["ccli", "space", "list"]).expect("parse");
+        assert!(matches!(cli.command, Some(Commands::Space(_))));
     }
 
     #[test]
