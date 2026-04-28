@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. User can press `q` or `Esc` to quit the TUI, and a key-binding help bar is visible at the bottom
 **Plans**: 5 plans
 Plans:
-- [ ] 02-01-PLAN.md — Add Phase 2 crates (ratatui, crossterm, nucleo-matcher, open) and implement src/api/space.rs with pagination and preview fetch
+- [x] 02-01-PLAN.md — Add Phase 2 crates (ratatui, crossterm, nucleo-matcher, open) and implement src/api/space.rs with pagination and preview fetch
 - [ ] 02-02-PLAN.md — Wire non-interactive CLI: SpaceArgs/SpaceCommands in cli/mod.rs, ccli space list handler, main.rs Option<Commands> dispatch
 - [ ] 02-03-PLAN.md — Implement src/tui/app.rs — App state machine, fuzzy filter (nucleo), debounce/cache, key handlers
 - [ ] 02-04-PLAN.md — Implement src/tui/screens/spaces.rs — pure render function with all widget states
@@ -80,6 +80,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/? | Not started | - |
-| 2. TUI Shell & Spaces | 0/5 | Not started | - |
+| 2. TUI Shell & Spaces | 1/5 | In Progress|  |
 | 3. Pages & Blog Posts | 0/? | Not started | - |
 | 4. Comments, Attachments & Search | 0/? | Not started | - |

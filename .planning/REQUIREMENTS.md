@@ -14,10 +14,10 @@
 
 ### Spaces
 
-- [ ] **SPC-01**: User can list all accessible Confluence spaces in a TUI list view
+- [x] **SPC-01**: User can list all accessible Confluence spaces in a TUI list view
 - [ ] **SPC-02**: User can fuzzy-filter the space list by space key or name
 - [ ] **SPC-03**: User can press `o` on a space to open it in the system browser
-- [ ] **SPC-04**: User can run `ccli space list` to output space list as a formatted table
+- [x] **SPC-04**: User can run `ccli space list` to output space list as a formatted table
 
 ### Pages
 
@@ -121,10 +121,10 @@
 | TUI-04 | Phase 2 | Pending |
 | TUI-05 | Phase 2 | Pending |
 | TUI-06 | Phase 2 | Pending |
-| SPC-01 | Phase 2 | Pending |
+| SPC-01 | Phase 2 | Complete |
 | SPC-02 | Phase 2 | Pending |
 | SPC-03 | Phase 2 | Pending |
-| SPC-04 | Phase 2 | Pending |
+| SPC-04 | Phase 2 | Complete |
 | PAGE-01 | Phase 3 | Pending |
 | PAGE-02 | Phase 4 | Pending |
 | PAGE-03 | Phase 3 | Pending |
