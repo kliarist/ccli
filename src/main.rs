@@ -4,9 +4,10 @@ mod api;
 mod cli;
 mod config;
 mod output;
+mod tui;
 
 use api::error::AppError;
-use cli::{Cli, Commands};
+use cli::{Cli, Commands, SpaceCommands};
 
 #[tokio::main]
 async fn main() {
@@ -34,7 +35,11 @@ async fn run() -> anyhow::Result<()> {
     let cli = <Cli as clap::Parser>::parse();
 
     match cli.command {
-        Commands::Init => cli::init::run(&cli).await,
+        Some(Commands::Init) => cli::init::run(&cli).await,
+        Some(Commands::Space(ref args)) => match args.command {
+            SpaceCommands::List => cli::space::run(&cli, args).await,
+        },
+        None => tui::run().await,  // D-10: bare ccli launches TUI
     }
 }
 
