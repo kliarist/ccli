@@ -24,6 +24,8 @@ use crate::config::Config;
 
 /// Long-lived API client. Holds a single reqwest::Client (connection pool).
 /// Created once per command invocation, reused across all calls.
+/// Clone is cheap — reqwest::Client shares the underlying connection pool (Arc-backed).
+#[derive(Clone)]
 pub struct Client {
     inner: ReqwestClient,
     base_url: String,
