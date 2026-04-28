@@ -34,7 +34,7 @@ pub(crate) fn render_string(
     }
     for row in rows {
         let filtered: Vec<&str> = col_indices.iter()
-            .map(|&i| row[i].as_str())
+            .map(|&i| row.get(i).map(|s| s.as_str()).unwrap_or(""))
             .collect();
         table.add_row(filtered);
     }

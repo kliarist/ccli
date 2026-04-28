@@ -24,6 +24,14 @@ pub fn render(
     let _ = render_to(&mut handle, headers, col_indices, rows, no_headers);
 }
 
+/// Escape tab and newline characters in a TSV cell value so that pipeline
+/// consumers (`awk -F'\t'`, `cut -f`, `sort -t$'\t'`) can always parse the
+/// output correctly.  Embedded `\t` becomes the two-character sequence `\t`,
+/// and similarly for `\n` and `\r`.
+fn escape_tsv_cell(s: &str) -> String {
+    s.replace('\t', "\\t").replace('\n', "\\n").replace('\r', "\\r")
+}
+
 /// Testable variant of `render` accepting an explicit writer.
 pub(crate) fn render_to<W: Write>(
     writer: &mut W,
@@ -36,8 +44,8 @@ pub(crate) fn render_to<W: Write>(
         writeln!(writer, "{}", headers.join("\t"))?;
     }
     for row in rows {
-        let filtered: Vec<&str> = col_indices.iter()
-            .map(|&i| row[i].as_str())
+        let filtered: Vec<String> = col_indices.iter()
+            .map(|&i| escape_tsv_cell(row.get(i).map(|s| s.as_str()).unwrap_or("")))
             .collect();
         writeln!(writer, "{}", filtered.join("\t"))?;
     }
