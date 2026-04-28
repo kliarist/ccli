@@ -6,6 +6,7 @@
 //! - D-13: static help bar + `?` modal
 
 pub mod app;
+pub mod screens;
 
 pub async fn run() -> anyhow::Result<()> {
     // Stub: replaced in Plan 05 (02-05-PLAN.md)
