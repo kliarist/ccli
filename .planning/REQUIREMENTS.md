@@ -15,8 +15,8 @@
 ### Spaces
 
 - [x] **SPC-01**: User can list all accessible Confluence spaces in a TUI list view
-- [ ] **SPC-02**: User can fuzzy-filter the space list by space key or name
-- [ ] **SPC-03**: User can press `o` on a space to open it in the system browser
+- [x] **SPC-02**: User can fuzzy-filter the space list by space key or name
+- [x] **SPC-03**: User can press `o` on a space to open it in the system browser
 - [x] **SPC-04**: User can run `ccli space list` to output space list as a formatted table
 
 ### Pages
@@ -50,10 +50,10 @@
 
 ### TUI & Navigation
 
-- [ ] **TUI-01**: TUI list pane supports arrow-key navigation and `j`/`k` vim bindings
-- [ ] **TUI-02**: TUI supports `/` to activate fuzzy search/filter within a list
+- [x] **TUI-01**: TUI list pane supports arrow-key navigation and `j`/`k` vim bindings
+- [x] **TUI-02**: TUI supports `/` to activate fuzzy search/filter within a list
 - [ ] **TUI-03**: TUI displays a content preview pane alongside the list pane (split view)
-- [ ] **TUI-04**: TUI supports `o` keybinding to open the selected item in the system browser
+- [x] **TUI-04**: TUI supports `o` keybinding to open the selected item in the system browser
 - [x] **TUI-05**: TUI supports `q` or `Esc` to quit or go back
 - [ ] **TUI-06**: TUI displays a key-binding help bar at the bottom of the screen
 
@@ -115,15 +115,15 @@
 | OUT-02 | Phase 1 | Pending |
 | OUT-03 | Phase 1 | Pending |
 | OUT-04 | Phase 1 | Pending |
-| TUI-01 | Phase 2 | Pending |
-| TUI-02 | Phase 2 | Pending |
+| TUI-01 | Phase 2 | Complete |
+| TUI-02 | Phase 2 | Complete |
 | TUI-03 | Phase 2 | Pending |
-| TUI-04 | Phase 2 | Pending |
+| TUI-04 | Phase 2 | Complete |
 | TUI-05 | Phase 2 | Complete |
 | TUI-06 | Phase 2 | Pending |
 | SPC-01 | Phase 2 | Complete |
-| SPC-02 | Phase 2 | Pending |
-| SPC-03 | Phase 2 | Pending |
+| SPC-02 | Phase 2 | Complete |
+| SPC-03 | Phase 2 | Complete |
 | SPC-04 | Phase 2 | Complete |
 | PAGE-01 | Phase 3 | Pending |
 | PAGE-02 | Phase 4 | Pending |

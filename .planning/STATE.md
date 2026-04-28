@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 UI-SPEC approved
-last_updated: "2026-04-28T07:33:58.585Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-04-28T07:41:31.001Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 7
-  percent: 70
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 ## Current Position
 
 Phase: 02 (tui-shell-spaces) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-04-28
 
-Progress: [███████░░░] 70%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [███████░░░] 70%
 *Updated after each plan completion*
 | Phase 02 P01 | 11 | 2 tasks | 4 files |
 | Phase 02 P02 | 4 | 2 tasks | 4 files |
+| Phase 02 P03 | 3 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - Raw XML editing: avoids lossy markdown conversion
 - jira-cli UX model: proven terminal UX, familiar to target users
 - Binary name `ccli`: short, memorable, mirrors `jira` from jira-cli
+- [Phase ?]: D-12: q always quits from any state; Esc closes overlays or quits at top-level Browse
+- [Phase ?]: D-16: nucleo-matcher on key+name haystack for real-time fuzzy filter
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-28T07:33:58.582Z
-Stopped at: Phase 2 UI-SPEC approved
+Last session: 2026-04-28T07:41:30.997Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
