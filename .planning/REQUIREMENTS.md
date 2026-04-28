@@ -52,10 +52,10 @@
 
 - [x] **TUI-01**: TUI list pane supports arrow-key navigation and `j`/`k` vim bindings
 - [x] **TUI-02**: TUI supports `/` to activate fuzzy search/filter within a list
-- [ ] **TUI-03**: TUI displays a content preview pane alongside the list pane (split view)
+- [x] **TUI-03**: TUI displays a content preview pane alongside the list pane (split view)
 - [x] **TUI-04**: TUI supports `o` keybinding to open the selected item in the system browser
 - [x] **TUI-05**: TUI supports `q` or `Esc` to quit or go back
-- [ ] **TUI-06**: TUI displays a key-binding help bar at the bottom of the screen
+- [x] **TUI-06**: TUI displays a key-binding help bar at the bottom of the screen
 
 ### Output Formatting
 
@@ -117,10 +117,10 @@
 | OUT-04 | Phase 1 | Pending |
 | TUI-01 | Phase 2 | Complete |
 | TUI-02 | Phase 2 | Complete |
-| TUI-03 | Phase 2 | Pending |
+| TUI-03 | Phase 2 | Complete |
 | TUI-04 | Phase 2 | Complete |
 | TUI-05 | Phase 2 | Complete |
-| TUI-06 | Phase 2 | Pending |
+| TUI-06 | Phase 2 | Complete |
 | SPC-01 | Phase 2 | Complete |
 | SPC-02 | Phase 2 | Complete |
 | SPC-03 | Phase 2 | Complete |
