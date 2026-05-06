@@ -21,20 +21,20 @@
 
 ### Pages
 
-- [ ] **PAGE-01**: User can list pages within a space in a TUI list + preview pane
+- [x] **PAGE-01**: User can list pages within a space in a TUI list + preview pane
 - [ ] **PAGE-02**: User can search pages using a CQL expression (`ccli page search "type=page AND space=DEV AND text~\"deploy\""`)
 - [ ] **PAGE-03**: User can fuzzy-filter the page list in the TUI by title
-- [ ] **PAGE-04**: User can view full page content (storage XML or plain-text rendering) in the TUI preview pane
-- [ ] **PAGE-05**: User can create a new page by running `ccli page create`, which opens `$EDITOR` with a storage XML template
-- [ ] **PAGE-06**: User can edit an existing page's storage XML by running `ccli page edit <PAGE-ID>`, which opens `$EDITOR`
+- [x] **PAGE-04**: User can view full page content (storage XML or plain-text rendering) in the TUI preview pane
+- [x] **PAGE-05**: User can create a new page by running `ccli page create`, which opens `$EDITOR` with a storage XML template
+- [x] **PAGE-06**: User can edit an existing page's storage XML by running `ccli page edit <PAGE-ID>`, which opens `$EDITOR`
 - [ ] **PAGE-07**: User can press `o` on a page in the TUI to open it in the system browser
-- [ ] **PAGE-08**: User can run `ccli page view <PAGE-ID>` to print page content to stdout
+- [x] **PAGE-08**: User can run `ccli page view <PAGE-ID>` to print page content to stdout
 
 ### Blog Posts
 
-- [ ] **BLOG-01**: User can list blog posts in a space in a TUI list + preview pane
-- [ ] **BLOG-02**: User can create a new blog post via `ccli blog create`, which opens `$EDITOR` with a storage XML template
-- [ ] **BLOG-03**: User can edit an existing blog post's storage XML via `ccli blog edit <POST-ID>`
+- [x] **BLOG-01**: User can list blog posts in a space in a TUI list + preview pane
+- [x] **BLOG-02**: User can create a new blog post via `ccli blog create`, which opens `$EDITOR` with a storage XML template
+- [x] **BLOG-03**: User can edit an existing blog post's storage XML via `ccli blog edit <POST-ID>`
 - [ ] **BLOG-04**: User can press `o` on a blog post in the TUI to open it in the system browser
 
 ### Comments
@@ -125,17 +125,17 @@
 | SPC-02 | Phase 2 | Complete |
 | SPC-03 | Phase 2 | Complete |
 | SPC-04 | Phase 2 | Complete |
-| PAGE-01 | Phase 3 | Pending |
+| PAGE-01 | Phase 3 | Complete |
 | PAGE-02 | Phase 4 | Pending |
 | PAGE-03 | Phase 3 | Pending |
-| PAGE-04 | Phase 3 | Pending |
-| PAGE-05 | Phase 3 | Pending |
-| PAGE-06 | Phase 3 | Pending |
+| PAGE-04 | Phase 3 | Complete |
+| PAGE-05 | Phase 3 | Complete |
+| PAGE-06 | Phase 3 | Complete |
 | PAGE-07 | Phase 3 | Pending |
-| PAGE-08 | Phase 3 | Pending |
-| BLOG-01 | Phase 3 | Pending |
-| BLOG-02 | Phase 3 | Pending |
-| BLOG-03 | Phase 3 | Pending |
+| PAGE-08 | Phase 3 | Complete |
+| BLOG-01 | Phase 3 | Complete |
+| BLOG-02 | Phase 3 | Complete |
+| BLOG-03 | Phase 3 | Complete |
 | BLOG-04 | Phase 3 | Pending |
 | CMNT-01 | Phase 4 | Pending |
 | CMNT-02 | Phase 4 | Pending |
