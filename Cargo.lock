@@ -441,6 +441,7 @@ dependencies = [
  "is-terminal",
  "nucleo-matcher",
  "open",
+ "quick-xml",
  "ratatui",
  "reqwest",
  "serde",
@@ -2236,6 +2237,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.39.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "721da970c312655cde9b4ffe0547f20a8494866a4af5ff51f18b7c633d0c870b"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]

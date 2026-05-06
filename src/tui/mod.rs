@@ -103,11 +103,9 @@ async fn run_app(
         }
 
         // Check for completed preview fetch (non-blocking try_recv)
-        if let Ok((key, detail_result)) = preview_rx.try_recv() {
-            match detail_result {
-                Ok(detail) => app.cache_detail(key, detail),
-                Err(_) => {} // preview errors are non-fatal; pane shows previous content
-            }
+        // preview errors are non-fatal; pane shows previous content
+        if let Ok((key, Ok(detail))) = preview_rx.try_recv() {
+            app.cache_detail(key, detail);
         }
 
         // If a preview fetch is pending (set by tick() after 150ms debounce), spawn it (D-19)
