@@ -12,6 +12,10 @@
 //!   event reader handles malformed XML by stopping and returning the partial output —
 //!   no panics, no buffer overruns.
 
+use quick_xml::escape::resolve_predefined_entity;
+use quick_xml::events::Event;
+use quick_xml::Reader;
+
 /// Convert Confluence storage XML into human-readable plain text.
 ///
 /// Transformation rules (UI-SPEC strip_storage_xml() Contract):
@@ -24,12 +28,117 @@
 /// - Consecutive blank lines collapsed to one
 ///
 /// Malformed XML: stop at the error, return partial output. Never panic.
-pub fn strip_storage_xml(_xml: &str) -> String {
-    // TODO: implementation stub — RED phase
-    String::new()
+///
+/// Called by Plan 04 (TUI preview pane) and Plan 05 (`ccli page view`).
+#[allow(dead_code)]
+pub fn strip_storage_xml(xml: &str) -> String {
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().trim_text(true);
+
+    let mut output = String::new();
+
+    // Tag-context flags — pushed/popped on Start/End. We use depth counters
+    // so nested constructs (e.g. <p><code>x</code></p>) do not drop state on the
+    // first close tag.
+    let mut heading_depth: u32 = 0;
+    let mut code_depth: u32 = 0;
+    let mut li_pending = false; // set on <li> Start, consumed by next text emit
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(ref e)) => {
+                match e.name().as_ref() {
+                    b"h1" | b"h2" | b"h3" | b"h4" | b"h5" | b"h6" => heading_depth += 1,
+                    b"code" | b"pre" => code_depth += 1,
+                    b"li" => li_pending = true,
+                    _ => {} // unknown tags including ac:*, ri:* — strip, retain text (Pitfall 7)
+                }
+            }
+            Ok(Event::End(ref e)) => {
+                match e.name().as_ref() {
+                    b"h1" | b"h2" | b"h3" | b"h4" | b"h5" | b"h6" => {
+                        heading_depth = heading_depth.saturating_sub(1);
+                        output.push('\n');
+                        output.push('\n');
+                    }
+                    b"p" => {
+                        output.push('\n');
+                        output.push('\n');
+                    }
+                    b"li" => {
+                        output.push('\n');
+                    }
+                    b"code" | b"pre" => {
+                        code_depth = code_depth.saturating_sub(1);
+                    }
+                    _ => {}
+                }
+            }
+            Ok(Event::Text(ref e)) => {
+                // In quick-xml 0.39, Text events contain plain text (no entity refs).
+                // Entity refs like &amp; are emitted as separate Event::GeneralRef events.
+                // decode() converts raw bytes → &str (character encoding only).
+                let raw = e.decode().unwrap_or_default();
+                emit_text(&raw, heading_depth, code_depth, &mut li_pending, &mut output);
+            }
+            Ok(Event::GeneralRef(ref e)) => {
+                // In quick-xml 0.39, entity references (&amp; &lt; &gt; &quot; etc.) are
+                // emitted as GeneralRef events separate from surrounding Text events.
+                // We resolve predefined XML entities here (T-03-05: no panic on unknown ref).
+                let ref_name = e.decode().unwrap_or_default();
+                if let Some(resolved) = resolve_predefined_entity(&ref_name) {
+                    emit_text(resolved, heading_depth, code_depth, &mut li_pending, &mut output);
+                } else if let Ok(Some(ch)) = e.resolve_char_ref() {
+                    // Numeric character references: &#60; or &#x3C;
+                    let s = ch.to_string();
+                    emit_text(&s, heading_depth, code_depth, &mut li_pending, &mut output);
+                }
+                // Unknown entity references are silently dropped (safe default).
+            }
+            Ok(Event::Empty(_)) => {
+                // self-closing tags like <br/> — emit nothing; if Confluence storage uses
+                // <br/> for line breaks we may revisit this behavior in a future iteration.
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break, // malformed: stop, return what we have (T-03-05 DoS mitigation)
+            _ => {}
+        }
+    }
+
+    collapse_blank_lines(&output)
+}
+
+/// Emit a text fragment into the output buffer, applying the current context
+/// (heading uppercase, code indentation, list item prefix).
+fn emit_text(
+    text: &str,
+    heading_depth: u32,
+    code_depth: u32,
+    li_pending: &mut bool,
+    output: &mut String,
+) {
+    if text.is_empty() {
+        return;
+    }
+    if heading_depth > 0 {
+        output.push_str(&text.to_uppercase());
+    } else if code_depth > 0 {
+        for line in text.split('\n') {
+            output.push_str("  ");
+            output.push_str(line);
+            output.push('\n');
+        }
+    } else if *li_pending {
+        output.push_str("- ");
+        output.push_str(text);
+        *li_pending = false;
+    } else {
+        output.push_str(text);
+    }
 }
 
 /// Collapse runs of three or more consecutive newlines down to exactly two ("\n\n").
+#[allow(dead_code)]
 fn collapse_blank_lines(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut newline_run: u32 = 0;
