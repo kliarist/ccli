@@ -342,6 +342,8 @@ fn render_help_bar(f: &mut Frame, area: Rect) {
         Span::raw("  open   "),
         key("e"),
         Span::raw("  edit   "),
+        key("c"),                       // D-49: comments binding
+        Span::raw("  comments   "),
         key("?"),
         Span::raw("  help   "),
         key("Esc"),
@@ -376,7 +378,7 @@ fn render_filter_overlay(f: &mut Frame, query: &str, list_area: Rect) {
 /// 50x16 Help modal — UI-SPEC Help Modal (Pages View) content.
 fn render_help_modal(f: &mut Frame, full_area: Rect) {
     let modal_w: u16 = 50;
-    let modal_h: u16 = 16;
+    let modal_h: u16 = 17;
     let x = full_area.x + (full_area.width.saturating_sub(modal_w)) / 2;
     let y = full_area.y + (full_area.height.saturating_sub(modal_h)) / 2;
     let area = Rect { x, y, width: modal_w.min(full_area.width),
@@ -410,6 +412,7 @@ fn render_help_modal(f: &mut Frame, full_area: Rect) {
         Line::from(Span::styled("Actions", bold)),
         row("Enter / o", "Open in browser"),
         row("e",         "Edit in $EDITOR"),
+        row("c",         "View comments"),
         row("/",         "Start filter"),
         row("Esc",       "Close filter / go back"),
         Line::from(""),
@@ -513,9 +516,28 @@ mod tests {
                 .map(|x| buffer.cell((x, y)).map(|c| c.symbol()).unwrap_or(" ").to_string())
                 .collect::<String>())
             .collect::<Vec<_>>().join("\n");
-        for token in &["filter", "open", "edit", "help", "back"] {
+        for token in &["filter", "open", "edit", "comments", "help", "back"] {
             assert!(dump.contains(token), "help bar must contain '{}'\nGot:\n{}", token, dump);
         }
+    }
+
+    #[test]
+    fn render_pages_help_modal_lists_view_comments_action() {
+        let backend = TestBackend::new(120, 30);
+        let mut terminal = Terminal::new(backend).expect("term");
+        let mut state = PagesBrowseState::with_pages(
+            "DEV", ApiContentType::Page, vec![make_page("1", "Alpha")],
+        );
+        state.browse_state = AppState::Modal;
+        terminal.draw(|f| render_pages(f, &mut state, f.area())).expect("draw");
+        let buffer = terminal.backend().buffer().clone();
+        let dump: String = (0..buffer.area.height)
+            .map(|y| (0..buffer.area.width)
+                .map(|x| buffer.cell((x, y)).map(|c| c.symbol()).unwrap_or(" ").to_string())
+                .collect::<String>())
+            .collect::<Vec<_>>().join("\n");
+        assert!(dump.contains("View comments"),
+            "help modal must list 'View comments' row. Got:\n{}", dump);
     }
 
     #[test]
