@@ -81,7 +81,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — Confluence API client for comments + attachments (api/comment.rs, api/attachment.rs, mime_guess dep)
 - [x] 04-02-PLAN.md — CLI dispatch contracts: Commands extension, page search handler (PAGE-02), main.rs wiring
-- [ ] 04-03-PLAN.md — TUI app.rs state extension: Screen::CommentsBrowse, CommentsBrowseState, KeyAction::DrillDownComments, c keybinding
+- [x] 04-03-PLAN.md — TUI app.rs state extension: Screen::CommentsBrowse, CommentsBrowseState, KeyAction::DrillDownComments, c keybinding
 - [ ] 04-04-PLAN.md — CLI handlers: ccli comment add ($EDITOR + plain-text wrap), ccli attachment list/get/add
 - [ ] 04-05-PLAN.md — TUI render: screens/comments.rs, event-loop wiring, pages help bar update + checkpoint
 
@@ -95,4 +95,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation | 0/? | Not started | - |
 | 2. TUI Shell & Spaces | 5/5 | Complete   | 2026-04-28 |
 | 3. Pages & Blog Posts | 6/6 | Complete   | 2026-05-07 |
-| 4. Comments, Attachments & Search | 2/5 | In Progress|  |
+| 4. Comments, Attachments & Search | 3/5 | In Progress|  |
