@@ -224,10 +224,22 @@ impl App {
                 .map(|(s, score)| (s.to_owned(), score))
                 .collect();
 
-            // Recover original indices — preserve score-sorted order
+            // Recover original indices — use a mutable "remaining" list to consume
+            // matches one-for-one, preserving correct indices for duplicate haystacks.
+            // CR-03: the old `position()` approach always returned the FIRST match for
+            // equal strings, causing duplicates or dropped items when titles are identical.
+            let mut remaining: Vec<(usize, String)> = haystacks
+                .iter()
+                .enumerate()
+                .map(|(i, s)| (i, s.clone()))
+                .collect();
             self.filtered_indices = matched
                 .iter()
-                .filter_map(|(h, _)| haystacks.iter().position(|x| x == h))
+                .filter_map(|(h, _)| {
+                    let pos = remaining.iter().position(|(_, s)| s == h)?;
+                    let (orig_idx, _) = remaining.remove(pos);
+                    Some(orig_idx)
+                })
                 .collect();
         }
 
@@ -543,9 +555,20 @@ impl PagesBrowseState {
                 .into_iter()
                 .map(|(s, score)| (s.to_owned(), score))
                 .collect();
+            // CR-03: use a mutable "remaining" list to consume matches one-for-one,
+            // preserving correct indices when two pages share an identical title.
+            let mut remaining: Vec<(usize, String)> = haystacks
+                .iter()
+                .enumerate()
+                .map(|(i, s)| (i, s.clone()))
+                .collect();
             self.filtered_indices = matched
                 .iter()
-                .filter_map(|(h, _)| haystacks.iter().position(|x| x == h))
+                .filter_map(|(h, _)| {
+                    let pos = remaining.iter().position(|(_, s)| s == h)?;
+                    let (orig_idx, _) = remaining.remove(pos);
+                    Some(orig_idx)
+                })
                 .collect();
         }
         if self.filtered_indices.is_empty() {
