@@ -42,6 +42,7 @@ use crate::config;
 use crate::tui::app::{
     App, CommentsBrowseState, KeyAction, PagesBrowseState, Screen, StatusMessage, StatusStyle,
 };
+use crate::tui::screens::comments::render_comments;
 use crate::tui::screens::pages::render_pages;
 use crate::tui::screens::spaces::render_spaces;
 
@@ -123,10 +124,7 @@ async fn run_app(
         // D-31: route render based on top of screen_stack.
         terminal.draw(|f| match app.screen_stack.last_mut() {
             Some(Screen::CommentsBrowse { state, .. }) => {
-                // Phase 4: comments screen — spinner only for now (render_comments in Plan 05)
-                let _ = state;
-                // Minimal fallback render until Plan 05 adds render_comments.
-                // We render nothing here (blank alt-screen) — acceptable for the state layer plan.
+                render_comments(f, state.as_mut(), f.area());
             }
             Some(Screen::PagesBrowse { state, .. }) => {
                 render_pages(f, state.as_mut(), f.area());
@@ -217,6 +215,11 @@ async fn run_app(
                     let _ = tx.send((id_tag, result)).await;
                 });
             }
+        }
+
+        // Phase 4: tick comments screen for spinner animation (CMNT-01)
+        if let Some(Screen::CommentsBrowse { state, .. }) = app.screen_stack.last_mut() {
+            state.tick();
         }
 
         // Poll for key events with 100ms timeout (drives spinner tick, RESEARCH.md Pitfall 4)
