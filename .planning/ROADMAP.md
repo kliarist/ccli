@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Foundation** - Rust project skeleton, Confluence API client, PAT auth, `ccli init`, and output formatting flags
 - [x] **Phase 2: TUI Shell & Spaces** - Ratatui TUI with full keyboard navigation, delivered through the Spaces feature end-to-end (completed 2026-04-28)
 - [x] **Phase 3: Pages & Blog Posts** - List, view, create, and edit Pages and Blog Posts — the core content workflow (gap closure 2026-05-07: 4/6 plans complete; 03-05 + 03-06 added by /gsd-plan-phase --gaps) (completed 2026-05-07)
-- [ ] **Phase 4: Comments, Attachments & Search** - Page-level comments and attachments, plus CQL search across spaces
+- [x] **Phase 4: Comments, Attachments & Search** - Page-level comments and attachments, plus CQL search across spaces (completed 2026-05-07)
 
 ## Phase Details
 
@@ -83,7 +83,7 @@ Plans:
 - [x] 04-02-PLAN.md — CLI dispatch contracts: Commands extension, page search handler (PAGE-02), main.rs wiring
 - [x] 04-03-PLAN.md — TUI app.rs state extension: Screen::CommentsBrowse, CommentsBrowseState, KeyAction::DrillDownComments, c keybinding
 - [x] 04-04-PLAN.md — CLI handlers: ccli comment add ($EDITOR + plain-text wrap), ccli attachment list/get/add
-- [ ] 04-05-PLAN.md — TUI render: screens/comments.rs, event-loop wiring, pages help bar update + checkpoint
+- [x] 04-05-PLAN.md — TUI render: screens/comments.rs, event-loop wiring, pages help bar update + checkpoint
 
 ## Progress
 
@@ -95,4 +95,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation | 0/? | Not started | - |
 | 2. TUI Shell & Spaces | 5/5 | Complete   | 2026-04-28 |
 | 3. Pages & Blog Posts | 6/6 | Complete   | 2026-05-07 |
-| 4. Comments, Attachments & Search | 4/5 | In Progress|  |
+| 4. Comments, Attachments & Search | 5/5 | Complete   | 2026-05-07 |
