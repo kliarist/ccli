@@ -18,6 +18,7 @@ use nucleo_matcher::{Config as NucleoConfig, Matcher};
 use ratatui::widgets::ListState;
 
 use crate::api::{AppError, Space, SpaceDetail};
+use crate::api::comment::Comment;
 use crate::api::page::{ContentType, Page, PageDetail};
 
 /// Spinner frames — text-only ASCII, 8 frames at 100ms interval (UI-SPEC Loading State).
@@ -401,6 +402,7 @@ impl App {
 /// with no overlay open. Spaces base screen lives below `screen_stack` itself
 /// (an empty stack means SpacesBrowse).
 #[allow(dead_code)]
+#[allow(clippy::enum_variant_names)] // All variants intentionally named *Browse (D-48, D-61)
 #[derive(Debug)]
 pub enum Screen {
     /// Original Phase 2 spaces list. Implicit when `App::screen_stack` is empty;
@@ -411,6 +413,12 @@ pub enum Screen {
         space_key: String,
         content_type: ContentType,
         state: Box<PagesBrowseState>,
+    },
+    /// Page-level comments browse view (D-48). Pushed when user presses 'c'
+    /// on a selected page in PagesBrowse.
+    CommentsBrowse {
+        page_id: String,
+        state: Box<CommentsBrowseState>,
     },
 }
 
@@ -645,6 +653,14 @@ impl PagesBrowseState {
                         KeyAction::EditPage(id)
                     } else { KeyAction::None }
                 }
+                KeyCode::Char('c') => {
+                    // D-49: push CommentsBrowse for the selected page (only if a row is selected).
+                    if let Some(id) = self.selected_id() {
+                        KeyAction::DrillDownComments(id)
+                    } else {
+                        KeyAction::None
+                    }
+                }
                 _ => KeyAction::None,
             },
             AppState::Filter { query } => {
@@ -682,6 +698,152 @@ impl PagesBrowseState {
     }
 }
 
+/// Per-screen state for a CommentsBrowse view (D-48..D-50).
+///
+/// Mirrors PagesBrowseState but simpler:
+/// - Comment bodies are fetched inline with the list (expand=body.storage),
+///   so no preview_cache + debounce machinery is needed.
+/// - No filter for v1 (deferred per CONTEXT.md).
+/// - No editor / open-browser actions for v1 (Esc pops back; q quits).
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct CommentsBrowseState {
+    pub page_id: String,
+    pub comments: Vec<Comment>,
+    pub list_state: ListState,
+    pub browse_state: AppState,
+    pub spinner_frame: usize,
+    pub error: Option<String>,
+}
+
+#[allow(dead_code)]
+impl CommentsBrowseState {
+    /// Create a fresh state in Loading state for a new screen.
+    pub fn new(page_id: String) -> Self {
+        let mut list_state = ListState::default();
+        list_state.select(None);
+        Self {
+            page_id,
+            comments: Vec::new(),
+            list_state,
+            browse_state: AppState::Loading,
+            spinner_frame: 0,
+            error: None,
+        }
+    }
+
+    /// Test-only constructor pre-loading comments without network fetch.
+    #[cfg(test)]
+    pub fn with_comments(page_id: &str, comments: Vec<Comment>) -> Self {
+        let mut s = Self::new(page_id.to_string());
+        s.set_comments(comments);
+        s
+    }
+
+    /// Transition Loading → Browse. Selects first row if non-empty.
+    pub fn set_comments(&mut self, comments: Vec<Comment>) {
+        self.comments = comments;
+        self.browse_state = AppState::Browse;
+        if !self.comments.is_empty() {
+            self.list_state.select(Some(0));
+        } else {
+            self.list_state.select(None);
+        }
+    }
+
+    /// Transition Loading → Browse with an error to display in status bar.
+    pub fn set_fetch_error(&mut self, err: &AppError) {
+        self.browse_state = AppState::Browse;
+        self.error = Some(err.to_string());
+    }
+
+    /// Currently-selected comment, if any.
+    pub fn selected_comment(&self) -> Option<&Comment> {
+        self.list_state.selected().and_then(|i| self.comments.get(i))
+    }
+
+    pub fn select_next(&mut self) {
+        if self.comments.is_empty() {
+            return;
+        }
+        let next = self.list_state.selected().map(|i| (i + 1).min(self.comments.len() - 1)).unwrap_or(0);
+        self.list_state.select(Some(next));
+    }
+
+    pub fn select_prev(&mut self) {
+        if self.comments.is_empty() {
+            return;
+        }
+        let prev = self.list_state.selected().map(|i| i.saturating_sub(1)).unwrap_or(0);
+        self.list_state.select(Some(prev));
+    }
+
+    pub fn select_first(&mut self) {
+        if !self.comments.is_empty() {
+            self.list_state.select(Some(0));
+        }
+    }
+
+    pub fn select_last(&mut self) {
+        if !self.comments.is_empty() {
+            self.list_state.select(Some(self.comments.len() - 1));
+        }
+    }
+
+    /// Advance the loading spinner (caller invokes on tick).
+    pub fn tick(&mut self) {
+        if matches!(self.browse_state, AppState::Loading) {
+            self.spinner_frame = self.spinner_frame.wrapping_add(1);
+        }
+    }
+
+    pub fn visible_count(&self) -> usize {
+        self.comments.len()
+    }
+
+    /// Per-screen key handler. Returns a KeyAction the event loop dispatches.
+    ///
+    /// V1 keymap (per 04-UI-SPEC.md):
+    ///   Loading: q → Quit; everything else → None
+    ///   Browse:  q → Quit; Esc → PopScreen
+    ///            j/Down → next; k/Up → prev
+    ///            g → top; G → bottom
+    ///   No filter, no edit, no browser-open in v1.
+    pub fn handle_key(&mut self, key: KeyCode) -> KeyAction {
+        match self.browse_state {
+            AppState::Loading => {
+                if key == KeyCode::Char('q') {
+                    return KeyAction::Quit;
+                }
+                KeyAction::None
+            }
+            AppState::Browse => match key {
+                KeyCode::Char('q') => KeyAction::Quit,
+                KeyCode::Esc => KeyAction::PopScreen,
+                KeyCode::Char('j') | KeyCode::Down => {
+                    self.select_next();
+                    KeyAction::None
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.select_prev();
+                    KeyAction::None
+                }
+                KeyCode::Char('g') => {
+                    self.select_first();
+                    KeyAction::None
+                }
+                KeyCode::Char('G') => {
+                    self.select_last();
+                    KeyAction::None
+                }
+                _ => KeyAction::None,
+            },
+            // No Filtering / overlay states for CommentsBrowse v1.
+            _ => KeyAction::None,
+        }
+    }
+}
+
 /// The outcome of a key event, returned to the event loop.
 #[derive(Debug, PartialEq)]
 #[allow(dead_code)]
@@ -701,6 +863,9 @@ pub enum KeyAction {
     /// `e` pressed on PagesBrowse with a selection → enter editor workflow (D-41).
     /// String is the selected page id.
     EditPage(String),
+    /// `c` pressed on PagesBrowse with a selection → push CommentsBrowse for the page (D-49).
+    /// String is the selected page id.
+    DrillDownComments(String),
 }
 
 #[cfg(test)]
@@ -1135,5 +1300,159 @@ mod tests {
         s.cache_detail("1".to_string(), detail);
         assert!(s.preview_cache.contains_key("1"));
         assert!(s.pending_preview_id.is_none());
+    }
+
+    // ── CommentsBrowseState tests ────────────────────────────────────────────
+
+    fn make_comment(id: &str, author: &str, when: &str, body: &str) -> Comment {
+        use crate::api::comment::{
+            CommentAuthor, CommentBody, CommentLinks, CommentVersion, StorageBody,
+        };
+        Comment {
+            id: id.to_string(),
+            title: "Re: page".to_string(),
+            version: Some(CommentVersion {
+                number: 1,
+                when: Some(when.to_string()),
+                by: Some(CommentAuthor { display_name: Some(author.to_string()) }),
+            }),
+            body: Some(CommentBody {
+                storage: Some(StorageBody {
+                    value: Some(body.to_string()),
+                    representation: Some("storage".to_string()),
+                }),
+            }),
+            links: CommentLinks::default(),
+        }
+    }
+
+    #[test]
+    fn comments_browse_state_new_starts_in_loading() {
+        let s = CommentsBrowseState::new("12345".into());
+        assert_eq!(s.browse_state, AppState::Loading);
+        assert!(s.list_state.selected().is_none());
+        assert!(s.comments.is_empty());
+    }
+
+    #[test]
+    fn comments_browse_state_set_comments_transitions_to_browse_and_selects_first() {
+        let mut s = CommentsBrowseState::new("12345".into());
+        let a = make_comment("1", "Alice", "2026-05-01", "First comment");
+        let b = make_comment("2", "Bob", "2026-05-02", "Second comment");
+        s.set_comments(vec![a, b]);
+        assert_eq!(s.browse_state, AppState::Browse);
+        assert_eq!(s.list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn comments_browse_state_set_comments_with_empty_vec_keeps_no_selection() {
+        let mut s = CommentsBrowseState::new("12345".into());
+        s.set_comments(vec![]);
+        assert_eq!(s.browse_state, AppState::Browse);
+        assert!(s.list_state.selected().is_none());
+    }
+
+    #[test]
+    fn comments_browse_state_set_fetch_error_records_message() {
+        let mut s = CommentsBrowseState::new("12345".into());
+        s.set_fetch_error(&AppError::Network("x".into()));
+        assert_eq!(s.browse_state, AppState::Browse);
+        assert!(s.error.as_deref().unwrap_or("").contains("x"),
+            "error message should contain 'x', got: {:?}", s.error);
+    }
+
+    #[test]
+    fn comments_browse_state_handle_key_q_quits() {
+        let mut s = CommentsBrowseState::with_comments(
+            "12345",
+            vec![make_comment("1", "Alice", "2026-05-01", "hi")],
+        );
+        assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit);
+    }
+
+    #[test]
+    fn comments_browse_state_handle_key_esc_pops_screen() {
+        let mut s = CommentsBrowseState::with_comments(
+            "12345",
+            vec![make_comment("1", "Alice", "2026-05-01", "hi")],
+        );
+        assert_eq!(s.handle_key(KeyCode::Esc), KeyAction::PopScreen);
+    }
+
+    #[test]
+    fn comments_browse_state_handle_key_jk_navigate() {
+        let mut s = CommentsBrowseState::with_comments(
+            "12345",
+            vec![
+                make_comment("1", "A", "2026-05-01", "c1"),
+                make_comment("2", "B", "2026-05-02", "c2"),
+                make_comment("3", "C", "2026-05-03", "c3"),
+            ],
+        );
+        // starts at 0 after set_comments
+        assert_eq!(s.list_state.selected(), Some(0));
+        s.handle_key(KeyCode::Char('j'));
+        assert_eq!(s.list_state.selected(), Some(1), "j should move down");
+        s.handle_key(KeyCode::Char('k'));
+        assert_eq!(s.list_state.selected(), Some(0), "k should move up");
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn comments_browse_state_handle_key_g_jumps_to_top_G_to_bottom() {
+        let mut s = CommentsBrowseState::with_comments(
+            "12345",
+            vec![
+                make_comment("1", "A", "2026-05-01", "c1"),
+                make_comment("2", "B", "2026-05-02", "c2"),
+                make_comment("3", "C", "2026-05-03", "c3"),
+            ],
+        );
+        // move to middle
+        s.list_state.select(Some(1));
+        s.handle_key(KeyCode::Char('g'));
+        assert_eq!(s.list_state.selected(), Some(0), "g should jump to top");
+        s.list_state.select(Some(1));
+        s.handle_key(KeyCode::Char('G'));
+        assert_eq!(s.list_state.selected(), Some(2), "G should jump to bottom");
+    }
+
+    #[test]
+    fn comments_browse_state_loading_handle_key_q_quits_other_keys_noop() {
+        let mut s = CommentsBrowseState::new("12345".into()); // starts in Loading
+        assert_eq!(s.browse_state, AppState::Loading);
+        assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit,
+            "q must quit in Loading state");
+        // Any other key → None
+        for key in [
+            KeyCode::Char('j'), KeyCode::Char('k'), KeyCode::Char('g'),
+            KeyCode::Char('G'), KeyCode::Esc, KeyCode::Enter,
+        ] {
+            assert_eq!(s.handle_key(key), KeyAction::None,
+                "{:?} must return None in Loading state", key);
+        }
+    }
+
+    #[test]
+    fn pages_browse_state_handle_key_c_returns_drill_down_comments_when_selection_present() {
+        let mut s = PagesBrowseState::with_pages(
+            "DEV", ContentType::Page,
+            vec![make_page("42", "My Page")],
+        );
+        s.list_state.select(Some(0));
+        let action = s.handle_key(KeyCode::Char('c'));
+        assert_eq!(action, KeyAction::DrillDownComments("42".to_string()),
+            "'c' with selection should return DrillDownComments");
+    }
+
+    #[test]
+    fn pages_browse_state_handle_key_c_returns_none_when_no_selection() {
+        // No pages → no selection possible
+        let mut s = PagesBrowseState::new("DEV".into(), ContentType::Page);
+        // browse_state is Loading — but we force to Browse to test the Browse arm
+        s.browse_state = AppState::Browse;
+        let action = s.handle_key(KeyCode::Char('c'));
+        assert_eq!(action, KeyAction::None,
+            "'c' without selection must return None, not DrillDownComments");
     }
 }

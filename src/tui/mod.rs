@@ -34,12 +34,13 @@ use tokio::sync::{mpsc, oneshot};
 use crate::api::{
     get_space_detail, list_all_spaces, resolve_webui_url, AppError, Client, Space,
 };
+use crate::api::comment::{list_comments, Comment};
 use crate::api::page::{
     get_page_detail, list_all_pages, update_page, ContentType, Page, PageDetail,
 };
 use crate::config;
 use crate::tui::app::{
-    App, KeyAction, PagesBrowseState, Screen, StatusMessage, StatusStyle,
+    App, CommentsBrowseState, KeyAction, PagesBrowseState, Screen, StatusMessage, StatusStyle,
 };
 use crate::tui::screens::pages::render_pages;
 use crate::tui::screens::spaces::render_spaces;
@@ -110,6 +111,10 @@ async fn run_app(
     let (pages_list_tx, mut pages_list_rx) =
         mpsc::channel::<(String, Result<Vec<Page>, AppError>)>(4);
 
+    // Phase 4: comments list fetch results — keyed by page_id (D-48).
+    let (comments_list_tx, mut comments_list_rx) =
+        mpsc::channel::<(String, Result<Vec<Comment>, AppError>)>(4);
+
     // Phase 3: pages preview detail fetches — keyed by page_id (D-43).
     let (pages_preview_tx, mut pages_preview_rx) =
         mpsc::channel::<(String, Result<PageDetail, AppError>)>(4);
@@ -117,6 +122,12 @@ async fn run_app(
     loop {
         // D-31: route render based on top of screen_stack.
         terminal.draw(|f| match app.screen_stack.last_mut() {
+            Some(Screen::CommentsBrowse { state, .. }) => {
+                // Phase 4: comments screen — spinner only for now (render_comments in Plan 05)
+                let _ = state;
+                // Minimal fallback render until Plan 05 adds render_comments.
+                // We render nothing here (blank alt-screen) — acceptable for the state layer plan.
+            }
             Some(Screen::PagesBrowse { state, .. }) => {
                 render_pages(f, state.as_mut(), f.area());
             }
@@ -167,6 +178,21 @@ async fn run_app(
             }
         }
 
+        // Phase 4: drain comments list fetch results (D-48)
+        while let Ok((page_id, fetch_result)) = comments_list_rx.try_recv() {
+            for screen in app.screen_stack.iter_mut().rev() {
+                if let Screen::CommentsBrowse { page_id: pid, state } = screen {
+                    if *pid == page_id {
+                        match fetch_result {
+                            Ok(comments) => state.set_comments(comments),
+                            Err(ref e) => state.set_fetch_error(e),
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
         // If a preview fetch is pending (set by tick() after 150ms debounce), spawn it (D-19)
         if let Some(key) = app.pending_preview_key.take() {
             let fetch_client = client.clone();
@@ -198,14 +224,16 @@ async fn run_app(
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     // Route the keypress to the correct handler depending on the top
-                    // of screen_stack. PagesBrowse delegates to its own state struct;
-                    // empty stack or SpacesBrowse uses the App handler (Phase 2 flow).
-                    let action = if let Some(Screen::PagesBrowse { state, .. }) =
-                        app.screen_stack.last_mut()
-                    {
-                        state.handle_key(key.code)
-                    } else {
-                        app.handle_key(key.code)
+                    // of screen_stack. PagesBrowse and CommentsBrowse delegate to their
+                    // own state structs; empty stack or SpacesBrowse uses the App handler.
+                    let action = match app.screen_stack.last_mut() {
+                        Some(Screen::CommentsBrowse { state, .. }) => {
+                            state.handle_key(key.code)
+                        }
+                        Some(Screen::PagesBrowse { state, .. }) => {
+                            state.handle_key(key.code)
+                        }
+                        _ => app.handle_key(key.code),
                     };
 
                     match action {
@@ -263,6 +291,21 @@ async fn run_app(
                                 } else { None })
                                 .unwrap_or(ContentType::Page);
                             handle_edit_page(&mut app, &client, &page_id, ct, terminal).await;
+                        }
+                        KeyAction::DrillDownComments(page_id) => {
+                            // D-49: push CommentsBrowse and spawn list_comments fetch
+                            let new_state = Box::new(CommentsBrowseState::new(page_id.clone()));
+                            app.screen_stack.push(Screen::CommentsBrowse {
+                                page_id: page_id.clone(),
+                                state: new_state,
+                            });
+                            let fetch_client = client.clone();
+                            let tx = comments_list_tx.clone();
+                            let id_tag = page_id.clone();
+                            tokio::spawn(async move {
+                                let result = list_comments(&fetch_client, &id_tag).await;
+                                let _ = tx.send((id_tag, result)).await;
+                            });
                         }
                         KeyAction::None => {}
                     }
