@@ -39,14 +39,14 @@
 
 ### Comments
 
-- [ ] **CMNT-01**: User can list all comments on a page in the TUI
-- [ ] **CMNT-02**: User can add a page-level comment via `ccli comment add <PAGE-ID>` (opens `$EDITOR`)
+- [x] **CMNT-01**: User can list all comments on a page in the TUI
+- [x] **CMNT-02**: User can add a page-level comment via `ccli comment add <PAGE-ID>` (opens `$EDITOR`)
 
 ### Attachments
 
-- [ ] **ATTCH-01**: User can list all attachments on a page via `ccli attachment list <PAGE-ID>`
-- [ ] **ATTCH-02**: User can download an attachment to a local path via `ccli attachment get <PAGE-ID> <FILENAME>`
-- [ ] **ATTCH-03**: User can upload a local file as an attachment to a page via `ccli attachment add <PAGE-ID> <FILE-PATH>`
+- [x] **ATTCH-01**: User can list all attachments on a page via `ccli attachment list <PAGE-ID>`
+- [x] **ATTCH-02**: User can download an attachment to a local path via `ccli attachment get <PAGE-ID> <FILENAME>`
+- [x] **ATTCH-03**: User can upload a local file as an attachment to a page via `ccli attachment add <PAGE-ID> <FILE-PATH>`
 
 ### TUI & Navigation
 
@@ -137,11 +137,11 @@
 | BLOG-02 | Phase 3 | Complete |
 | BLOG-03 | Phase 3 | Complete |
 | BLOG-04 | Phase 3 | Complete |
-| CMNT-01 | Phase 4 | Pending |
-| CMNT-02 | Phase 4 | Pending |
-| ATTCH-01 | Phase 4 | Pending |
-| ATTCH-02 | Phase 4 | Pending |
-| ATTCH-03 | Phase 4 | Pending |
+| CMNT-01 | Phase 4 | Complete |
+| CMNT-02 | Phase 4 | Complete |
+| ATTCH-01 | Phase 4 | Complete |
+| ATTCH-02 | Phase 4 | Complete |
+| ATTCH-03 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 35 total
