@@ -130,6 +130,8 @@ async fn run_app(
                             handle_open_browser(&mut app, &space_key, &base_url, terminal)?;
                         }
                         KeyAction::None => {}
+                        // Plan 06 will wire screen-stack dispatch; no-ops for now.
+                        KeyAction::DrillDown(_) | KeyAction::PopScreen | KeyAction::EditPage(_) => {}
                     }
                 }
             }

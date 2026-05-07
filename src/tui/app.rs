@@ -18,12 +18,29 @@ use nucleo_matcher::{Config as NucleoConfig, Matcher};
 use ratatui::widgets::ListState;
 
 use crate::api::{AppError, Space, SpaceDetail};
+use crate::api::page::{ContentType, Page, PageDetail};
 
 /// Spinner frames — text-only ASCII, 8 frames at 100ms interval (UI-SPEC Loading State).
 pub const SPINNER_FRAMES: &[&str] = &["◐", "◓", "◑", "◒", "◐", "◓", "◑", "◒"];
 
 /// Debounce period before preview detail is fetched (D-19).
 const PREVIEW_DEBOUNCE: Duration = Duration::from_millis(150);
+
+/// Status bar message overlay used by PagesBrowseState to display editor results
+/// (D-41: "Saved.", "Conflict: ...", "Error saving: ...").
+/// Cleared by the next navigation keypress in the event loop.
+#[derive(Debug, Clone)]
+pub struct StatusMessage {
+    pub text: String,
+    pub style: StatusStyle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusStyle {
+    Success, // Color::Green — D-41 "Saved."
+    Error,   // Color::Red   — D-39 "Conflict: ...", "Error saving: ..."
+    Info,    // Color::Reset — "Opening editor…"
+}
 
 /// TUI state machine variants (UI-SPEC State Machine section).
 #[derive(Debug, Clone, PartialEq)]
@@ -63,6 +80,9 @@ pub struct App {
     pub spaces_fetched_count: usize,
     /// If a fetch error occurred, store for status bar rendering.
     pub error: Option<String>,
+    /// Phase 3 (D-31): screen navigation stack. Empty = single SpacesBrowse view.
+    /// Push PagesBrowse on Enter (D-30); pop on Esc with no overlay.
+    pub screen_stack: Vec<Screen>,
 }
 
 impl App {
@@ -81,6 +101,7 @@ impl App {
             spinner_frame: 0,
             spaces_fetched_count: 0,
             error: None,
+            screen_stack: Vec::new(),
         }
     }
 
@@ -293,6 +314,14 @@ impl App {
                         KeyAction::None
                     }
                 }
+                KeyCode::Enter => {
+                    // D-30: Enter on a selected space drills into its page list
+                    if let Some(key_str) = self.selected_key() {
+                        KeyAction::DrillDown(key_str)
+                    } else {
+                        KeyAction::None
+                    }
+                }
                 _ => KeyAction::None,
             },
 
@@ -355,6 +384,47 @@ impl App {
     }
 }
 
+/// TUI navigation stack frame (D-31).
+///
+/// Only the top of the stack is rendered. Push on Enter (D-30), pop on Esc
+/// with no overlay open. Spaces base screen lives below `screen_stack` itself
+/// (an empty stack means SpacesBrowse).
+#[derive(Debug)]
+pub enum Screen {
+    /// Original Phase 2 spaces list. Implicit when `App::screen_stack` is empty;
+    /// also used explicitly when entering the TUI directly into spaces.
+    SpacesBrowse,
+    /// Pages or blog posts list for one space (D-30, D-37).
+    PagesBrowse {
+        space_key: String,
+        content_type: ContentType,
+        state: Box<PagesBrowseState>,
+    },
+}
+
+/// Per-screen state for a Pages or Blog Posts browse view (D-31, D-44).
+///
+/// Mirrors App's state shape one-for-one — pages instead of spaces, page IDs
+/// instead of space keys for cache and selection. Owns its own filter, list,
+/// preview cache, and status. Owned by Screen::PagesBrowse so multiple drilled-in
+/// screens preserve scroll/filter state independently.
+#[derive(Debug)]
+pub struct PagesBrowseState {
+    pub space_key: String,
+    pub content_type: ContentType,
+    pub pages: Vec<Page>,
+    pub list_state: ListState,
+    pub filtered_indices: Vec<usize>,
+    pub browse_state: AppState,
+    pub preview_cache: HashMap<String, PageDetail>,
+    pub pending_preview_id: Option<String>,
+    pub last_selection_change: Option<Instant>,
+    pub spinner_frame: usize,
+    pub pages_fetched_count: usize,
+    pub error: Option<String>,
+    pub status_message: Option<StatusMessage>,
+}
+
 /// The outcome of a key event, returned to the event loop.
 #[derive(Debug, PartialEq)]
 pub enum KeyAction {
@@ -365,6 +435,14 @@ pub enum KeyAction {
     /// Open the given space key's URL in the system browser.
     /// Caller must resolve URL via resolve_webui_url() and call open::that().
     OpenBrowser(String),
+    /// Enter pressed on a space in SpacesBrowse → push PagesBrowse onto stack (D-30).
+    /// String is the selected space key.
+    DrillDown(String),
+    /// Esc pressed on PagesBrowse with no overlay open → pop screen stack (D-30).
+    PopScreen,
+    /// `e` pressed on PagesBrowse with a selection → enter editor workflow (D-41).
+    /// String is the selected page id.
+    EditPage(String),
 }
 
 #[cfg(test)]
@@ -563,5 +641,37 @@ mod tests {
 
         app.select_first();
         assert_eq!(app.list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn new_app_has_empty_screen_stack() {
+        let app = App::new();
+        assert!(app.screen_stack.is_empty(),
+                "screen_stack must start empty (implicit SpacesBrowse)");
+    }
+
+    #[test]
+    fn handle_key_enter_on_selected_space_returns_drill_down() {
+        let mut app = App::with_spaces(vec![make_space("DEV", "Development")]);
+        app.list_state.select(Some(0));
+        let action = app.handle_key(KeyCode::Enter);
+        assert_eq!(action, KeyAction::DrillDown("DEV".to_string()));
+    }
+
+    #[test]
+    fn handle_key_enter_with_no_selection_returns_none() {
+        let mut app = App::new();
+        // Loading state, no selection
+        let action = app.handle_key(KeyCode::Enter);
+        // Loading branch only handles 'q'; Enter returns None.
+        assert_eq!(action, KeyAction::None);
+    }
+
+    #[test]
+    fn key_action_drill_down_pop_screen_edit_page_construct() {
+        // Compile-time check that the new variants exist with expected shape.
+        let _drill = KeyAction::DrillDown("DEV".to_string());
+        let _pop = KeyAction::PopScreen;
+        let _edit = KeyAction::EditPage("12345".to_string());
     }
 }
