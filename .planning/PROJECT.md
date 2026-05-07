@@ -28,24 +28,24 @@ A developer can find, read, and edit any Confluence page from the terminal as fl
 *(moved to Validated above)*
 
 **Spaces**
-- [ ] User can list all accessible spaces in a TUI list view
-- [ ] User can fuzzy-filter the space list by key or name
-- [ ] User can open a space in the browser from the TUI
+- [x] User can list all accessible spaces in a TUI list view — Validated in Phase 02: tui-shell-spaces
+- [x] User can fuzzy-filter the space list by key or name — Validated in Phase 02: tui-shell-spaces
+- [x] User can open a space in the browser from the TUI — Validated in Phase 02: tui-shell-spaces
 
 **Pages**
-- [ ] User can list pages within a space in a TUI list + preview pane
-- [ ] User can search pages using CQL (Confluence Query Language)
-- [ ] User can fuzzy-filter page lists in the TUI
-- [ ] User can view the full page content (rendered as plain text or raw storage XML)
-- [ ] User can create a new page by opening `$EDITOR` with a template
-- [ ] User can edit an existing page's storage XML in `$EDITOR`
-- [ ] User can open a page in the browser from the TUI
+- [x] User can list pages within a space in a TUI list + preview pane — Validated in Phase 03: pages-blog-posts
+- [x] User can fuzzy-filter page lists in the TUI — Validated in Phase 03: pages-blog-posts
+- [x] User can view the full page content (rendered as plain text or raw storage XML) — Validated in Phase 03: pages-blog-posts
+- [x] User can create a new page by opening `$EDITOR` with a template — Validated in Phase 03: pages-blog-posts
+- [x] User can edit an existing page's storage XML in `$EDITOR` — Validated in Phase 03: pages-blog-posts
+- [x] User can open a page in the browser from the TUI — Validated in Phase 03: pages-blog-posts
+- [ ] User can search pages using CQL (Confluence Query Language) — Phase 04
 
 **Blog Posts**
-- [ ] User can list blog posts in a space in a TUI list + preview pane
-- [ ] User can create a new blog post via `$EDITOR`
-- [ ] User can edit an existing blog post's storage XML via `$EDITOR`
-- [ ] User can open a blog post in the browser
+- [x] User can list blog posts via `ccli blog list` — Validated in Phase 03: pages-blog-posts
+- [x] User can create a new blog post via `$EDITOR` (`ccli blog create`) — Validated in Phase 03: pages-blog-posts
+- [x] User can edit an existing blog post's storage XML via `$EDITOR` (`ccli blog edit`) — Validated in Phase 03: pages-blog-posts
+- [x] User can open a blog post in the browser (`ccli blog view --open`) — Validated in Phase 03: pages-blog-posts
 
 **Comments**
 - [ ] User can list comments on a page in the TUI
@@ -91,8 +91,8 @@ A developer can find, read, and edit any Confluence page from the terminal as fl
 |----------|-----------|---------|
 | Rust over Go | Single binary distribution, memory safety, performance — and differentiates from jira-cli (Go) | Confirmed — Phase 1 binary compiles to single static executable, 80 tests pass |
 | PAT auth only | Simplest correct auth for DC 9.x; OAuth 1.0a is complex and rarely needed | Confirmed — Phase 1 PAT flow verified end-to-end |
-| Raw XML editing | Markdown-to-storage conversion is lossy and complex to maintain for all macro types | — Pending (Phase 3) |
-| jira-cli UX model | Proven terminal UX for Atlassian tooling; users familiar with jira-cli will onboard instantly | — Pending (Phase 2 TUI) |
+| Raw XML editing | Markdown-to-storage conversion is lossy and complex to maintain for all macro types | Confirmed — Phase 3 editor workflow uses raw storage XML; quick-xml strips to plain text for preview |
+| jira-cli UX model | Proven terminal UX for Atlassian tooling; users familiar with jira-cli will onboard instantly | Confirmed — Phase 2/3 TUI: list + preview pane, fuzzy filter, `o` browser-open, `e` editor |
 | Binary name `ccli` | Short, memorable, unambiguous — mirrors `jira` from jira-cli | Confirmed — binary name set in Cargo.toml |
 
 ## Evolution
@@ -115,7 +115,9 @@ This document evolves at phase transitions and milestone boundaries.
 ---
 ## Current State
 
-Phase 01 (foundation) complete — Rust binary skeleton, config management, output formatting, Confluence API client, and `ccli init` interactive setup all implemented and verified. 80 unit tests passing.
+Phase 03 (pages-blog-posts) complete — full pages/blog-posts API client, XML storage stripper, TUI browse screen with live preview, CLI `ccli page` and `ccli blog` subcommands, and TUI event loop wiring (drill-down, editor workflow, browser-open) all implemented and verified. 189 tests passing.
+
+Next: Phase 04 — Comments, Attachments & Search (CQL search, page comments, attachment upload/download).
 
 ---
-*Last updated: 2026-04-26 — Phase 01: foundation complete*
+*Last updated: 2026-05-07 — Phase 03: pages-blog-posts complete*
