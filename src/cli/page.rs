@@ -418,6 +418,202 @@ mod tests {
     use super::*;
     use crate::api::page::{PageBody, PageDetail, PageLinks, StorageBody};
 
+    // ── Search tests ─────────────────────────────────────────────────────────────
+
+    use crate::config::Config;
+    use crate::api::Client;
+    use crate::output::OutputConfig;
+    use httpmock::prelude::*;
+
+    fn test_client(base_url: &str) -> Client {
+        Client::new(&Config {
+            url: base_url.to_string(),
+            token: "AT-test-token".to_string(),
+        })
+        .expect("client")
+    }
+
+    /// Helper: call the inner logic of handle_search without loading config,
+    /// using a test client and a buffer writer to capture output.
+    async fn run_search(
+        client: &Client,
+        cql: &str,
+        limit: u32,
+    ) -> anyhow::Result<(Vec<String>, Vec<Vec<String>>)> {
+        let url = format!(
+            "{}/rest/api/content/search",
+            client.base_url().trim_end_matches('/'),
+        );
+        let limit_str = limit.to_string();
+        let resp = client
+            .inner()
+            .get(&url)
+            .query(&[
+                ("cql", cql),
+                ("limit", limit_str.as_str()),
+                ("expand", "space"),
+            ])
+            .send()
+            .await
+            .map_err(|e| AppError::Network(e.to_string()))?;
+
+        let status = resp.status().as_u16();
+        let parsed: SearchResponse = match status {
+            200 => resp.json().await.map_err(|e| {
+                AppError::Api(format!("Failed to parse search response: {}", e))
+            })?,
+            401 | 403 => {
+                return Err(AppError::Auth(
+                    "Authentication failed.".to_string(),
+                )
+                .into());
+            }
+            _ => {
+                return Err(AppError::Api(format!(
+                    "Unexpected HTTP {} from /rest/api/content/search",
+                    status
+                ))
+                .into());
+            }
+        };
+
+        let base = client.base_url().trim_end_matches('/').to_string();
+        let rows: Vec<Vec<String>> = parsed
+            .results
+            .iter()
+            .map(|r| {
+                let space_key = r.space.as_ref().map(|s| s.key.clone()).unwrap_or_default();
+                let webui = r.links.webui.as_deref().unwrap_or("");
+                let url = if webui.is_empty() {
+                    String::new()
+                } else if webui.starts_with("http") {
+                    webui.to_string()
+                } else {
+                    format!("{}{}", base, webui)
+                };
+                vec![r.title.clone(), r.id.clone(), space_key, url]
+            })
+            .collect();
+
+        Ok((vec!["Title".into(), "ID".into(), "Space".into(), "URL".into()], rows))
+    }
+
+    #[tokio::test]
+    async fn page_search_outputs_table_with_4_columns() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/search");
+            then.status(200).json_body(serde_json::json!({
+                "results": [
+                    {
+                        "id": "100", "title": "Alpha Page",
+                        "space": {"key": "DEV"},
+                        "_links": {"webui": "/display/DEV/Alpha+Page"}
+                    },
+                    {
+                        "id": "200", "title": "Beta Page",
+                        "space": {"key": "DEV"},
+                        "_links": {"webui": "/display/DEV/Beta+Page"}
+                    }
+                ]
+            }));
+        });
+        let client = test_client(&server.base_url());
+        let (headers, rows) = run_search(&client, "type=page", 25)
+            .await
+            .expect("search ok");
+
+        assert_eq!(headers, vec!["Title", "ID", "Space", "URL"]);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0][0], "Alpha Page");
+        assert_eq!(rows[0][1], "100");
+        assert_eq!(rows[0][2], "DEV");
+        assert!(rows[0][3].contains("/display/DEV/Alpha+Page"));
+        assert_eq!(rows[1][0], "Beta Page");
+    }
+
+    #[tokio::test]
+    async fn page_search_default_limit_is_25() {
+        let server = MockServer::start();
+        let m = server.mock(|when, then| {
+            when.method(GET)
+                .path("/rest/api/content/search")
+                .query_param("limit", "25");
+            then.status(200).json_body(serde_json::json!({ "results": [] }));
+        });
+        let client = test_client(&server.base_url());
+        run_search(&client, "type=page", 25).await.expect("ok");
+        m.assert();
+    }
+
+    #[tokio::test]
+    async fn page_search_custom_limit_passes_through() {
+        let server = MockServer::start();
+        let m = server.mock(|when, then| {
+            when.method(GET)
+                .path("/rest/api/content/search")
+                .query_param("limit", "5");
+            then.status(200).json_body(serde_json::json!({ "results": [] }));
+        });
+        let client = test_client(&server.base_url());
+        run_search(&client, "type=page", 5).await.expect("ok");
+        m.assert();
+    }
+
+    #[tokio::test]
+    async fn page_search_url_column_resolves_to_full_url() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/search");
+            then.status(200).json_body(serde_json::json!({
+                "results": [
+                    {
+                        "id": "42", "title": "My Page",
+                        "space": {"key": "DEV"},
+                        "_links": {"webui": "/display/DEV/page-id"}
+                    }
+                ]
+            }));
+        });
+        let base_url = server.base_url();
+        let client = test_client(&base_url);
+        let (_headers, rows) = run_search(&client, "type=page", 25)
+            .await
+            .expect("ok");
+
+        assert_eq!(rows.len(), 1);
+        let url_col = &rows[0][3];
+        assert!(
+            url_col.starts_with(&base_url),
+            "URL column must start with base_url; got: {}",
+            url_col
+        );
+        assert!(
+            url_col.ends_with("/display/DEV/page-id"),
+            "URL column must end with webui path; got: {}",
+            url_col
+        );
+    }
+
+    #[tokio::test]
+    async fn page_search_returns_auth_error_on_401() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/search");
+            then.status(401);
+        });
+        let client = test_client(&server.base_url());
+        let result = run_search(&client, "type=page", 25).await;
+        assert!(result.is_err());
+        let err_chain = result.unwrap_err();
+        let has_auth_err = err_chain
+            .chain()
+            .any(|e| e.downcast_ref::<AppError>()
+                .map(|ae| matches!(ae, AppError::Auth(_)))
+                .unwrap_or(false));
+        assert!(has_auth_err, "expected AppError::Auth in chain; got: {}", err_chain);
+    }
+
     fn detail_with_body(body: Option<&str>) -> PageDetail {
         PageDetail {
             id: "1".into(),
