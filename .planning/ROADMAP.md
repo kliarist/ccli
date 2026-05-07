@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation** - Rust project skeleton, Confluence API client, PAT auth, `ccli init`, and output formatting flags
 - [x] **Phase 2: TUI Shell & Spaces** - Ratatui TUI with full keyboard navigation, delivered through the Spaces feature end-to-end (completed 2026-04-28)
-- [x] **Phase 3: Pages & Blog Posts** - List, view, create, and edit Pages and Blog Posts — the core content workflow (completed 2026-05-07)
+- [ ] **Phase 3: Pages & Blog Posts** - List, view, create, and edit Pages and Blog Posts — the core content workflow (gap closure 2026-05-07: 4/6 plans complete; 03-05 + 03-06 added by /gsd-plan-phase --gaps)
 - [ ] **Phase 4: Comments, Attachments & Search** - Page-level comments and attachments, plus CQL search across spaces
 
 ## Phase Details
@@ -59,7 +59,14 @@ Plans:
   3. User can run `ccli page create` to open `$EDITOR` with a storage XML template and publish the result as a new page
   4. User can run `ccli page edit <PAGE-ID>` to open the page's storage XML in `$EDITOR` and save changes back to Confluence
   5. User can list, create, edit, and open Blog Posts using `ccli blog` subcommands with the same TUI and editor experience as pages
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [x] 03-01-PLAN.md — Add src/api/page.rs (list/get/create/update + ContentType) and quick-xml dep
+- [x] 03-02-PLAN.md — Implement strip_storage_xml in src/output/xml.rs
+- [x] 03-03-PLAN.md — Extend src/tui/app.rs: Screen enum, PagesBrowseState, KeyAction extensions, screen_stack
+- [x] 03-04-PLAN.md — Implement src/tui/screens/pages.rs render_pages
+- [ ] 03-05-PLAN.md — Add ccli page / ccli blog CLI subcommands (list/view/create/edit) with $EDITOR workflow [gap closure]
+- [ ] 03-06-PLAN.md — Wire screen-stack render dispatch, pages preview fetch, OpenBrowser webui fix, EditPage TUI workflow [gap closure]
 **UI hint**: yes
 
 ### Phase 4: Comments, Attachments & Search
@@ -81,5 +88,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/? | Not started | - |
 | 2. TUI Shell & Spaces | 5/5 | Complete   | 2026-04-28 |
-| 3. Pages & Blog Posts | 4/4 | Complete   | 2026-05-07 |
+| 3. Pages & Blog Posts | 4/6 | Gap closure | -          |
 | 4. Comments, Attachments & Search | 0/? | Not started | - |
