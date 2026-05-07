@@ -147,19 +147,24 @@ pub async fn list_all_pages(
     let limit = 50u32;
 
     loop {
-        let url = format!(
-            "{}/rest/api/content?spaceKey={}&type={}&start={}&limit={}&expand=version,ancestors",
+        // WR-05: use .query() builder so reqwest percent-encodes all values,
+        // preventing query-string injection via crafted space keys (e.g. "DEV&type=blogpost").
+        let base = format!(
+            "{}/rest/api/content",
             client.base_url().trim_end_matches('/'),
-            space_key,
-            content_type.as_api_str(),
-            start,
-            limit,
         );
-        debug!("Fetching content list page: GET {}", url);
+        debug!("Fetching content list page: GET {} start={}", base, start);
 
         let resp = client
             .inner()
-            .get(&url)
+            .get(&base)
+            .query(&[
+                ("spaceKey", space_key),
+                ("type", content_type.as_api_str()),
+                ("start", &start.to_string()),
+                ("limit", &limit.to_string()),
+                ("expand", "version,ancestors"),
+            ])
             .send()
             .await
             .map_err(|e| {
