@@ -10,9 +10,8 @@ use crate::output::{parse_columns, OutputConfig};
 
 pub mod init;
 pub mod space;
-// Plan 03-05 Task 2 will create these modules:
-// pub mod page;
-// pub mod blog;
+pub mod page;
+pub mod blog;
 
 /// `ccli` — Confluence Data Center CLI.
 #[derive(Parser, Debug)]
