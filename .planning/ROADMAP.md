@@ -65,7 +65,7 @@ Plans:
 - [x] 03-02-PLAN.md — Implement strip_storage_xml in src/output/xml.rs
 - [x] 03-03-PLAN.md — Extend src/tui/app.rs: Screen enum, PagesBrowseState, KeyAction extensions, screen_stack
 - [x] 03-04-PLAN.md — Implement src/tui/screens/pages.rs render_pages
-- [ ] 03-05-PLAN.md — Add ccli page / ccli blog CLI subcommands (list/view/create/edit) with $EDITOR workflow [gap closure]
+- [x] 03-05-PLAN.md — Add ccli page / ccli blog CLI subcommands (list/view/create/edit) with $EDITOR workflow [gap closure]
 - [ ] 03-06-PLAN.md — Wire screen-stack render dispatch, pages preview fetch, OpenBrowser webui fix, EditPage TUI workflow [gap closure]
 **UI hint**: yes
 

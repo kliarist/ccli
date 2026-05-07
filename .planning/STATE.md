@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-05-07T07:47:27.353Z"
-last_activity: 2026-05-07 -- Phase 03 planning complete
+last_updated: "2026-05-07T07:59:21.878Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 16
-  completed_plans: 14
-  percent: 88
+  completed_plans: 15
+  percent: 94
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 ## Current Position
 
 Phase: 03 (pages-blog-posts) — EXECUTING
-Plan: 3 of 4
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-05-07 -- Phase 03 planning complete
+Last activity: 2026-05-07
 
-Progress: [██████████] 100%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [██████████] 100%
 | Phase 03-pages-blog-posts P01 | 35 | 2 tasks | 4 files |
 | Phase 03-pages-blog-posts P02 | 9min | 1 tasks | 2 files |
 | Phase 03-pages-blog-posts P04 | 4min | 1 tasks | 2 files |
+| Phase 03-pages-blog-posts P05 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 02]: poll() on async thread acceptable for single-user CLI; spawn_blocking not needed (RESEARCH.md Open Q3)
 - [Phase 02]: Client derives Clone — reqwest::Client is Arc-backed, cheap clone, PAT not duplicated (T-02-18)
 - [Phase 02]: base_url extracted before client move into tokio::spawn, threaded as String through run_app and handle_open_browser (D-24)
+- [Phase 03-05]: D-35 TTY TUI launch deferred to Plan 06 — handle_list_typed always prints table (correct when piped, deliberate gap on TTY)
+- [Phase 03-05]: sanitize_id() digits-only validation guards /tmp path construction (T-03-14 path traversal mitigation)
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-07T06:42:30.232Z
-Stopped at: Phase 3 UI-SPEC approved
+Last session: 2026-05-07T08:30:00Z
+Stopped at: Completed 03-05 CLI page/blog subcommands
 Resume file: None
