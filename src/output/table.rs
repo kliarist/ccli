@@ -9,12 +9,7 @@ use comfy_table::{ContentArrangement, Table};
 
 /// Render headers + rows as an aligned table to stdout.
 #[allow(dead_code)]
-pub fn render(
-    headers: &[String],
-    col_indices: &[usize],
-    rows: &[Vec<String>],
-    no_headers: bool,
-) {
+pub fn render(headers: &[String], col_indices: &[usize], rows: &[Vec<String>], no_headers: bool) {
     println!("{}", render_string(headers, col_indices, rows, no_headers));
 }
 
@@ -34,7 +29,8 @@ pub(crate) fn render_string(
         table.set_header(headers.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     }
     for row in rows {
-        let filtered: Vec<&str> = col_indices.iter()
+        let filtered: Vec<&str> = col_indices
+            .iter()
             .map(|&i| row.get(i).map(|s| s.as_str()).unwrap_or(""))
             .collect();
         table.add_row(filtered);
@@ -59,9 +55,17 @@ mod tests {
             false,
         );
         assert!(out.contains("Key"), "output missing header 'Key': {}", out);
-        assert!(out.contains("Name"), "output missing header 'Name': {}", out);
+        assert!(
+            out.contains("Name"),
+            "output missing header 'Name': {}",
+            out
+        );
         assert!(out.contains("DEV"), "output missing cell 'DEV': {}", out);
-        assert!(out.contains("Development"), "output missing cell 'Development': {}", out);
+        assert!(
+            out.contains("Development"),
+            "output missing cell 'Development': {}",
+            out
+        );
     }
 
     #[test]
@@ -72,7 +76,11 @@ mod tests {
             &[vec!["DEV".into(), "Development".into()]],
             true,
         );
-        assert!(!out.contains("UNIQUE_HEADER_TOKEN"), "header should be suppressed: {}", out);
+        assert!(
+            !out.contains("UNIQUE_HEADER_TOKEN"),
+            "header should be suppressed: {}",
+            out
+        );
         assert!(out.contains("DEV"), "rows should still print: {}", out);
     }
 
@@ -86,22 +94,29 @@ mod tests {
         );
         assert!(out.contains("Key"), "header missing: {}", out);
         assert!(out.contains("DEV"), "first col missing: {}", out);
-        assert!(!out.contains("ShouldBeOmitted"), "second col should be filtered out: {}", out);
+        assert!(
+            !out.contains("ShouldBeOmitted"),
+            "second col should be filtered out: {}",
+            out
+        );
     }
 
     #[test]
     fn uses_utf8_box_drawing_characters() {
-        let out = render_string(
-            &h(&["A"]),
-            &[0],
-            &[vec!["1".into()]],
-            false,
-        );
+        let out = render_string(&h(&["A"]), &[0], &[vec!["1".into()]], false);
         // UTF8_FULL_CONDENSED uses heavy box-drawing characters.
-        let has_box_char = out.contains('┃') || out.contains('━')
-            || out.contains('┏') || out.contains('┗')
-            || out.contains('┓') || out.contains('┛')
-            || out.contains('│') || out.contains('─');
-        assert!(has_box_char, "expected UTF-8 box-drawing characters in output: {}", out);
+        let has_box_char = out.contains('┃')
+            || out.contains('━')
+            || out.contains('┏')
+            || out.contains('┗')
+            || out.contains('┓')
+            || out.contains('┛')
+            || out.contains('│')
+            || out.contains('─');
+        assert!(
+            has_box_char,
+            "expected UTF-8 box-drawing characters in output: {}",
+            out
+        );
     }
 }

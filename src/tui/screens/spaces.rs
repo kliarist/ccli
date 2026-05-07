@@ -6,14 +6,13 @@
 //!
 //! Visual contract source: 02-UI-SPEC.md
 
-use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{
-    Block, BorderType, Borders, Clear, HighlightSpacing, List, ListItem,
-    Padding, Paragraph, Wrap,
+    Block, BorderType, Borders, Clear, HighlightSpacing, List, ListItem, Padding, Paragraph, Wrap,
 };
+use ratatui::Frame;
 
 use crate::api::space::SpaceDetail;
 use crate::tui::app::{App, AppState, SPINNER_FRAMES};
@@ -44,10 +43,8 @@ pub fn render_spaces(f: &mut Frame, app: &mut App, area: Rect) {
         AppState::Filter { query } => {
             let q = query.clone();
             // Compute list pane area for overlay position
-            let horizontal = Layout::horizontal([
-                Constraint::Percentage(40),
-                Constraint::Percentage(60),
-            ]);
+            let horizontal =
+                Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)]);
             let [list_area, _] = horizontal.areas(body_area);
             render_filter_overlay(f, &q, list_area);
         }
@@ -96,10 +93,7 @@ fn render_title(f: &mut Frame, app: &App, area: Rect) {
 
 /// Render the main body — horizontal 40%/60% split (D-20).
 fn render_body(f: &mut Frame, app: &mut App, area: Rect) {
-    let horizontal = Layout::horizontal([
-        Constraint::Percentage(40),
-        Constraint::Percentage(60),
-    ]);
+    let horizontal = Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)]);
     let [list_area, preview_area] = horizontal.areas(area);
 
     render_list_pane(f, app, list_area);
@@ -299,10 +293,7 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
             AppState::Loading => {
                 let spinner = SPINNER_FRAMES[app.spinner_frame % SPINNER_FRAMES.len()];
                 Line::from(vec![
-                    Span::styled(
-                        format!(" {} ", spinner),
-                        Style::default().fg(Color::Cyan),
-                    ),
+                    Span::styled(format!(" {} ", spinner), Style::default().fg(Color::Cyan)),
                     Span::styled("Loading spaces…", Style::default()),
                 ])
             }

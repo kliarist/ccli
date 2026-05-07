@@ -17,9 +17,9 @@ use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config as NucleoConfig, Matcher};
 use ratatui::widgets::ListState;
 
-use crate::api::{AppError, Space, SpaceDetail};
 use crate::api::comment::Comment;
 use crate::api::page::{ContentType, Page, PageDetail};
+use crate::api::{AppError, Space, SpaceDetail};
 
 /// Spinner frames — text-only ASCII, 8 frames at 100ms interval (UI-SPEC Loading State).
 pub const SPINNER_FRAMES: &[&str] = &["◐", "◓", "◑", "◒", "◐", "◓", "◑", "◒"];
@@ -512,18 +512,30 @@ impl PagesBrowseState {
     }
 
     pub fn select_next(&mut self) {
-        if self.filtered_indices.is_empty() { return; }
+        if self.filtered_indices.is_empty() {
+            return;
+        }
         let current = self.list_state.selected().unwrap_or(0);
-        let next = if current + 1 >= self.filtered_indices.len() { 0 } else { current + 1 };
+        let next = if current + 1 >= self.filtered_indices.len() {
+            0
+        } else {
+            current + 1
+        };
         self.list_state.select(Some(next));
         self.last_selection_change = Some(Instant::now());
         self.pending_preview_id = None;
     }
 
     pub fn select_prev(&mut self) {
-        if self.filtered_indices.is_empty() { return; }
+        if self.filtered_indices.is_empty() {
+            return;
+        }
         let current = self.list_state.selected().unwrap_or(0);
-        let prev = if current == 0 { self.filtered_indices.len() - 1 } else { current - 1 };
+        let prev = if current == 0 {
+            self.filtered_indices.len() - 1
+        } else {
+            current - 1
+        };
         self.list_state.select(Some(prev));
         self.last_selection_change = Some(Instant::now());
         self.pending_preview_id = None;
@@ -610,9 +622,12 @@ impl PagesBrowseState {
         // Any navigation key clears a transient status message (D-41 ephemeral "Saved.")
         let clears_status = matches!(
             key,
-            KeyCode::Char('j') | KeyCode::Char('k')
-                | KeyCode::Down | KeyCode::Up
-                | KeyCode::Char('g') | KeyCode::Char('G')
+            KeyCode::Char('j')
+                | KeyCode::Char('k')
+                | KeyCode::Down
+                | KeyCode::Up
+                | KeyCode::Char('g')
+                | KeyCode::Char('G')
                 | KeyCode::Enter
         );
         if clears_status {
@@ -621,22 +636,41 @@ impl PagesBrowseState {
 
         match &self.browse_state.clone() {
             AppState::Loading => {
-                if key == KeyCode::Char('q') { return KeyAction::Quit; }
+                if key == KeyCode::Char('q') {
+                    return KeyAction::Quit;
+                }
                 KeyAction::None
             }
             AppState::Browse => match key {
                 KeyCode::Char('q') => KeyAction::Quit,
                 KeyCode::Esc => KeyAction::PopScreen, // D-30: Esc → pop back to spaces
-                KeyCode::Char('j') | KeyCode::Down => { self.select_next(); KeyAction::None }
-                KeyCode::Char('k') | KeyCode::Up   => { self.select_prev(); KeyAction::None }
-                KeyCode::Char('g') => { self.select_first(); KeyAction::None }
-                KeyCode::Char('G') => { self.select_last();  KeyAction::None }
+                KeyCode::Char('j') | KeyCode::Down => {
+                    self.select_next();
+                    KeyAction::None
+                }
+                KeyCode::Char('k') | KeyCode::Up => {
+                    self.select_prev();
+                    KeyAction::None
+                }
+                KeyCode::Char('g') => {
+                    self.select_first();
+                    KeyAction::None
+                }
+                KeyCode::Char('G') => {
+                    self.select_last();
+                    KeyAction::None
+                }
                 KeyCode::Char('/') => {
-                    self.browse_state = AppState::Filter { query: String::new() };
+                    self.browse_state = AppState::Filter {
+                        query: String::new(),
+                    };
                     self.apply_filter("");
                     KeyAction::None
                 }
-                KeyCode::Char('?') => { self.browse_state = AppState::Modal; KeyAction::None }
+                KeyCode::Char('?') => {
+                    self.browse_state = AppState::Modal;
+                    KeyAction::None
+                }
                 KeyCode::Enter | KeyCode::Char('o') => {
                     // D-32: Enter == o — open in browser.
                     // WR-02 fix: carry the webui PATH from the API response (D-24),
@@ -651,7 +685,9 @@ impl PagesBrowseState {
                     // D-41: edit selected page in $EDITOR
                     if let Some(id) = self.selected_id() {
                         KeyAction::EditPage(id)
-                    } else { KeyAction::None }
+                    } else {
+                        KeyAction::None
+                    }
                 }
                 KeyCode::Char('c') => {
                     // D-49: push CommentsBrowse for the selected page (only if a row is selected).
@@ -677,8 +713,12 @@ impl PagesBrowseState {
                         self.browse_state = AppState::Filter { query: q.clone() };
                         self.apply_filter(&q);
                     }
-                    KeyCode::Char('j') | KeyCode::Down => { self.select_next(); }
-                    KeyCode::Char('k') | KeyCode::Up   => { self.select_prev(); }
+                    KeyCode::Char('j') | KeyCode::Down => {
+                        self.select_next();
+                    }
+                    KeyCode::Char('k') | KeyCode::Up => {
+                        self.select_prev();
+                    }
                     KeyCode::Enter => {} // D-15: real-time, no submit
                     KeyCode::Char(c) => {
                         q.push(c);
@@ -691,7 +731,10 @@ impl PagesBrowseState {
             }
             AppState::Modal => match key {
                 KeyCode::Char('q') => KeyAction::Quit,
-                KeyCode::Esc => { self.browse_state = AppState::Browse; KeyAction::None }
+                KeyCode::Esc => {
+                    self.browse_state = AppState::Browse;
+                    KeyAction::None
+                }
                 _ => KeyAction::None,
             },
         }
@@ -759,14 +802,20 @@ impl CommentsBrowseState {
 
     /// Currently-selected comment, if any.
     pub fn selected_comment(&self) -> Option<&Comment> {
-        self.list_state.selected().and_then(|i| self.comments.get(i))
+        self.list_state
+            .selected()
+            .and_then(|i| self.comments.get(i))
     }
 
     pub fn select_next(&mut self) {
         if self.comments.is_empty() {
             return;
         }
-        let next = self.list_state.selected().map(|i| (i + 1).min(self.comments.len() - 1)).unwrap_or(0);
+        let next = self
+            .list_state
+            .selected()
+            .map(|i| (i + 1).min(self.comments.len() - 1))
+            .unwrap_or(0);
         self.list_state.select(Some(next));
     }
 
@@ -774,7 +823,11 @@ impl CommentsBrowseState {
         if self.comments.is_empty() {
             return;
         }
-        let prev = self.list_state.selected().map(|i| i.saturating_sub(1)).unwrap_or(0);
+        let prev = self
+            .list_state
+            .selected()
+            .map(|i| i.saturating_sub(1))
+            .unwrap_or(0);
         self.list_state.select(Some(prev));
     }
 
@@ -953,7 +1006,7 @@ mod tests {
         ]);
         app.list_state.select(Some(2)); // select last
         app.apply_filter("Alpha"); // filter narrows to 1 item
-        // Selection must reset to 0 (not 2 which would panic)
+                                   // Selection must reset to 0 (not 2 which would panic)
         assert_eq!(
             app.list_state.selected(),
             Some(0),
@@ -1069,8 +1122,10 @@ mod tests {
     #[test]
     fn new_app_has_empty_screen_stack() {
         let app = App::new();
-        assert!(app.screen_stack.is_empty(),
-                "screen_stack must start empty (implicit SpacesBrowse)");
+        assert!(
+            app.screen_stack.is_empty(),
+            "screen_stack must start empty (implicit SpacesBrowse)"
+        );
     }
 
     #[test]
@@ -1135,21 +1190,28 @@ mod tests {
     #[test]
     fn pages_state_apply_filter_resets_list_state_pitfall3() {
         let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page,
-            vec![make_page("1", "Alpha"), make_page("2", "Beta"), make_page("3", "Gamma")],
+            "DEV",
+            ContentType::Page,
+            vec![
+                make_page("1", "Alpha"),
+                make_page("2", "Beta"),
+                make_page("3", "Gamma"),
+            ],
         );
         s.list_state.select(Some(2));
         s.apply_filter("Alpha");
-        assert_eq!(s.list_state.selected(), Some(0),
-                   "Pitfall 3: filter MUST reset selection");
+        assert_eq!(
+            s.list_state.selected(),
+            Some(0),
+            "Pitfall 3: filter MUST reset selection"
+        );
         assert_eq!(s.filtered_indices.len(), 1);
     }
 
     #[test]
     fn pages_state_apply_filter_no_match_clears_selection() {
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("1", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
         s.apply_filter("ZZZNOMATCH");
         assert!(s.list_state.selected().is_none());
         assert_eq!(s.filtered_indices.len(), 0);
@@ -1159,7 +1221,8 @@ mod tests {
     fn pages_state_apply_filter_matches_by_title_only_d44() {
         // D-44: filter on title, NOT id. Searching for the id "1" should NOT match.
         let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page,
+            "DEV",
+            ContentType::Page,
             vec![make_page("1", "Alpha"), make_page("2", "Beta")],
         );
         s.apply_filter("Beta");
@@ -1169,20 +1232,22 @@ mod tests {
 
     #[test]
     fn pages_state_handle_key_esc_in_browse_returns_pop_screen() {
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("1", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
         let action = s.handle_key(KeyCode::Esc);
-        assert_eq!(action, KeyAction::PopScreen, "D-30: Esc on PagesBrowse pops to Spaces");
+        assert_eq!(
+            action,
+            KeyAction::PopScreen,
+            "D-30: Esc on PagesBrowse pops to Spaces"
+        );
     }
 
     #[test]
     fn pages_state_handle_key_enter_returns_open_browser_with_webui_path_d32_wr02() {
         // WR-02: OpenBrowser must carry the webui PATH (e.g. "/x/99"), not the page id.
         // make_page builds webui = Some("/x/{id}").
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("99", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("99", "Alpha")]);
         s.list_state.select(Some(0));
         let action = s.handle_key(KeyCode::Enter);
         assert_eq!(
@@ -1194,9 +1259,8 @@ mod tests {
 
     #[test]
     fn pages_state_handle_key_o_returns_open_browser_with_webui_path_wr02() {
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("99", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("99", "Alpha")]);
         s.list_state.select(Some(0));
         let action = s.handle_key(KeyCode::Char('o'));
         assert_eq!(
@@ -1216,33 +1280,42 @@ mod tests {
             content_type: "page".to_string(),
             version: None,
             ancestors: None,
-            links: crate::api::page::PageLinks { webui: None, self_url: None },
+            links: crate::api::page::PageLinks {
+                webui: None,
+                self_url: None,
+            },
         };
         let mut s = PagesBrowseState::with_pages("DEV", ContentType::Page, vec![page]);
         s.list_state.select(Some(0));
         let action = s.handle_key(KeyCode::Char('o'));
-        assert_eq!(action, KeyAction::None,
-                   "WR-02: missing webui must be a graceful no-op, not OpenBrowser(\"1\")");
+        assert_eq!(
+            action,
+            KeyAction::None,
+            "WR-02: missing webui must be a graceful no-op, not OpenBrowser(\"1\")"
+        );
     }
 
     #[test]
     fn pages_state_handle_key_e_returns_edit_page_d41() {
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("99", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("99", "Alpha")]);
         s.list_state.select(Some(0));
         let action = s.handle_key(KeyCode::Char('e'));
-        assert_eq!(action, KeyAction::EditPage("99".to_string()),
-                   "D-41: 'e' triggers editor workflow");
+        assert_eq!(
+            action,
+            KeyAction::EditPage("99".to_string()),
+            "D-41: 'e' triggers editor workflow"
+        );
     }
 
     #[test]
     fn pages_state_handle_key_q_quits_from_any_state() {
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("1", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
         assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit);
-        s.browse_state = AppState::Filter { query: "x".to_string() };
+        s.browse_state = AppState::Filter {
+            query: "x".to_string(),
+        };
         assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit);
         s.browse_state = AppState::Modal;
         assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit);
@@ -1250,18 +1323,16 @@ mod tests {
 
     #[test]
     fn pages_state_handle_key_slash_opens_filter() {
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("1", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
         s.handle_key(KeyCode::Char('/'));
         assert!(matches!(s.browse_state, AppState::Filter { .. }));
     }
 
     #[test]
     fn pages_state_handle_key_question_opens_modal() {
-        let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("1", "Alpha")],
-        );
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
         s.handle_key(KeyCode::Char('?'));
         assert_eq!(s.browse_state, AppState::Modal);
     }
@@ -1269,7 +1340,9 @@ mod tests {
     #[test]
     fn pages_state_navigation_key_clears_status_message() {
         let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("1", "Alpha"), make_page("2", "Beta")],
+            "DEV",
+            ContentType::Page,
+            vec![make_page("1", "Alpha"), make_page("2", "Beta")],
         );
         s.status_message = Some(StatusMessage {
             text: "Saved.".to_string(),
@@ -1282,7 +1355,9 @@ mod tests {
     #[test]
     fn pages_state_select_next_wraps() {
         let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page, vec![make_page("1", "A"), make_page("2", "B")],
+            "DEV",
+            ContentType::Page,
+            vec![make_page("1", "A"), make_page("2", "B")],
         );
         s.list_state.select(Some(1));
         s.select_next();
@@ -1293,8 +1368,12 @@ mod tests {
     fn pages_state_cache_detail_inserts_into_preview_cache() {
         let mut s = PagesBrowseState::new("DEV".into(), ContentType::Page);
         let detail = PageDetail {
-            id: "1".into(), title: "T".into(), content_type: "page".into(),
-            version: None, ancestors: None, body: None,
+            id: "1".into(),
+            title: "T".into(),
+            content_type: "page".into(),
+            version: None,
+            ancestors: None,
+            body: None,
             links: crate::api::page::PageLinks::default(),
         };
         s.cache_detail("1".to_string(), detail);
@@ -1314,7 +1393,9 @@ mod tests {
             version: Some(CommentVersion {
                 number: 1,
                 when: Some(when.to_string()),
-                by: Some(CommentAuthor { display_name: Some(author.to_string()) }),
+                by: Some(CommentAuthor {
+                    display_name: Some(author.to_string()),
+                }),
             }),
             body: Some(CommentBody {
                 storage: Some(StorageBody {
@@ -1357,8 +1438,11 @@ mod tests {
         let mut s = CommentsBrowseState::new("12345".into());
         s.set_fetch_error(&AppError::Network("x".into()));
         assert_eq!(s.browse_state, AppState::Browse);
-        assert!(s.error.as_deref().unwrap_or("").contains("x"),
-            "error message should contain 'x', got: {:?}", s.error);
+        assert!(
+            s.error.as_deref().unwrap_or("").contains("x"),
+            "error message should contain 'x', got: {:?}",
+            s.error
+        );
     }
 
     #[test]
@@ -1421,28 +1505,43 @@ mod tests {
     fn comments_browse_state_loading_handle_key_q_quits_other_keys_noop() {
         let mut s = CommentsBrowseState::new("12345".into()); // starts in Loading
         assert_eq!(s.browse_state, AppState::Loading);
-        assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit,
-            "q must quit in Loading state");
+        assert_eq!(
+            s.handle_key(KeyCode::Char('q')),
+            KeyAction::Quit,
+            "q must quit in Loading state"
+        );
         // Any other key → None
         for key in [
-            KeyCode::Char('j'), KeyCode::Char('k'), KeyCode::Char('g'),
-            KeyCode::Char('G'), KeyCode::Esc, KeyCode::Enter,
+            KeyCode::Char('j'),
+            KeyCode::Char('k'),
+            KeyCode::Char('g'),
+            KeyCode::Char('G'),
+            KeyCode::Esc,
+            KeyCode::Enter,
         ] {
-            assert_eq!(s.handle_key(key), KeyAction::None,
-                "{:?} must return None in Loading state", key);
+            assert_eq!(
+                s.handle_key(key),
+                KeyAction::None,
+                "{:?} must return None in Loading state",
+                key
+            );
         }
     }
 
     #[test]
     fn pages_browse_state_handle_key_c_returns_drill_down_comments_when_selection_present() {
         let mut s = PagesBrowseState::with_pages(
-            "DEV", ContentType::Page,
+            "DEV",
+            ContentType::Page,
             vec![make_page("42", "My Page")],
         );
         s.list_state.select(Some(0));
         let action = s.handle_key(KeyCode::Char('c'));
-        assert_eq!(action, KeyAction::DrillDownComments("42".to_string()),
-            "'c' with selection should return DrillDownComments");
+        assert_eq!(
+            action,
+            KeyAction::DrillDownComments("42".to_string()),
+            "'c' with selection should return DrillDownComments"
+        );
     }
 
     #[test]
@@ -1452,7 +1551,10 @@ mod tests {
         // browse_state is Loading — but we force to Browse to test the Browse arm
         s.browse_state = AppState::Browse;
         let action = s.handle_key(KeyCode::Char('c'));
-        assert_eq!(action, KeyAction::None,
-            "'c' without selection must return None, not DrillDownComments");
+        assert_eq!(
+            action,
+            KeyAction::None,
+            "'c' without selection must return None, not DrillDownComments"
+        );
     }
 }

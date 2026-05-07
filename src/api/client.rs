@@ -66,12 +66,17 @@ impl Client {
 
 /// Read CCLI_INSECURE env var. Only the literal value `"1"` enables insecure mode.
 fn read_insecure_env() -> bool {
-    std::env::var("CCLI_INSECURE").map(|v| v == "1").unwrap_or(false)
+    std::env::var("CCLI_INSECURE")
+        .map(|v| v == "1")
+        .unwrap_or(false)
 }
 
 /// Construct a reqwest::Client with PAT auth header, 30s timeout, and optional
 /// `danger_accept_invalid_certs(true)` for self-signed certs.
-fn build_reqwest_client(token: &str, accept_invalid_certs: bool) -> Result<ReqwestClient, AppError> {
+fn build_reqwest_client(
+    token: &str,
+    accept_invalid_certs: bool,
+) -> Result<ReqwestClient, AppError> {
     let mut headers = header::HeaderMap::new();
     let auth_value = header::HeaderValue::from_str(&format!("Bearer {}", token))
         .map_err(|e| AppError::Config(format!("Invalid token characters: {}", e)))?;
@@ -105,17 +110,13 @@ pub async fn test_connection(base_url: &str, token: &str) -> Result<String, AppE
 
     let client = build_reqwest_client(token, read_insecure_env())?;
 
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                AppError::Network(format!("Cannot reach {}: {}", trimmed, e))
-            } else {
-                AppError::Network(e.to_string())
-            }
-        })?;
+    let resp = client.get(&url).send().await.map_err(|e| {
+        if e.is_connect() || e.is_timeout() {
+            AppError::Network(format!("Cannot reach {}: {}", trimmed, e))
+        } else {
+            AppError::Network(e.to_string())
+        }
+    })?;
 
     match resp.status().as_u16() {
         200 => {
@@ -148,7 +149,10 @@ mod tests {
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn fixture_config(url: &str) -> Config {
-        Config { url: url.to_string(), token: "tok-xyz".into() }
+        Config {
+            url: url.to_string(),
+            token: "tok-xyz".into(),
+        }
     }
 
     #[test]
@@ -165,7 +169,10 @@ mod tests {
         let _g = ENV_LOCK.lock().unwrap();
         std::env::set_var("CCLI_INSECURE", "1");
         let c = Client::new(&fixture_config("https://example.com")).expect("new");
-        assert!(c.accepts_invalid_certs(), "CCLI_INSECURE=1 must enable danger_accept_invalid_certs");
+        assert!(
+            c.accepts_invalid_certs(),
+            "CCLI_INSECURE=1 must enable danger_accept_invalid_certs"
+        );
         std::env::remove_var("CCLI_INSECURE");
     }
 
@@ -191,7 +198,8 @@ mod tests {
         let server = MockServer::start();
         let _m = server.mock(|when, then| {
             when.method(GET).path("/rest/api/user/current");
-            then.status(200).json_body(serde_json::json!({"displayName": "Alice"}));
+            then.status(200)
+                .json_body(serde_json::json!({"displayName": "Alice"}));
         });
         let result = test_connection(&server.base_url(), "valid-tok").await;
         assert_eq!(result.unwrap(), "Alice");
@@ -206,7 +214,9 @@ mod tests {
         });
         let result = test_connection(&server.base_url(), "bad").await;
         match result {
-            Err(AppError::Auth(msg)) => assert!(msg.to_lowercase().contains("invalid") || msg.to_lowercase().contains("expired")),
+            Err(AppError::Auth(msg)) => assert!(
+                msg.to_lowercase().contains("invalid") || msg.to_lowercase().contains("expired")
+            ),
             other => panic!("expected AppError::Auth, got {:?}", other),
         }
     }
@@ -220,7 +230,10 @@ mod tests {
         });
         let result = test_connection(&server.base_url(), "limited").await;
         match result {
-            Err(AppError::Auth(msg)) => assert!(msg.to_lowercase().contains("access denied") || msg.to_lowercase().contains("permission")),
+            Err(AppError::Auth(msg)) => assert!(
+                msg.to_lowercase().contains("access denied")
+                    || msg.to_lowercase().contains("permission")
+            ),
             other => panic!("expected AppError::Auth, got {:?}", other),
         }
     }
@@ -244,7 +257,8 @@ mod tests {
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.method(GET).path("/rest/api/user/current");
-            then.status(200).json_body(serde_json::json!({"displayName": "Bob"}));
+            then.status(200)
+                .json_body(serde_json::json!({"displayName": "Bob"}));
         });
         // Pass a base URL with trailing slashes; the function should normalize.
         let mut url = server.base_url();
@@ -290,7 +304,10 @@ mod tests {
         let result = test_connection(&server.base_url(), "tok").await;
         match result {
             Err(AppError::Auth(_)) => {}
-            other => panic!("expected AppError::Auth on 200 with missing displayName, got {:?}", other),
+            other => panic!(
+                "expected AppError::Auth on 200 with missing displayName, got {:?}",
+                other
+            ),
         }
     }
 }

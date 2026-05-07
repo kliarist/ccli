@@ -81,9 +81,10 @@ pub async fn list_attachments(client: &Client, page_id: &str) -> Result<Vec<Atta
         })?;
     match resp.status().as_u16() {
         200 => {
-            let parsed: AttachmentListResponse = resp.json().await.map_err(|e| {
-                AppError::Api(format!("Failed to parse attachment list: {}", e))
-            })?;
+            let parsed: AttachmentListResponse = resp
+                .json()
+                .await
+                .map_err(|e| AppError::Api(format!("Failed to parse attachment list: {}", e)))?;
             Ok(parsed.results)
         }
         401 | 403 => Err(AppError::Auth(
@@ -109,20 +110,28 @@ pub async fn get_attachment(
     filename: &str,
 ) -> Result<Bytes, AppError> {
     let attachments = list_attachments(client, page_id).await?;
-    let target = attachments.iter().find(|a| a.title == filename).ok_or_else(|| {
-        AppError::Api(format!(
-            "Attachment '{}' not found on page {}",
-            filename, page_id
-        ))
-    })?;
-    let download_path = target.links.download.as_deref().ok_or_else(|| {
-        AppError::Api(format!("Attachment '{}' has no download link", filename))
-    })?;
+    let target = attachments
+        .iter()
+        .find(|a| a.title == filename)
+        .ok_or_else(|| {
+            AppError::Api(format!(
+                "Attachment '{}' not found on page {}",
+                filename, page_id
+            ))
+        })?;
+    let download_path =
+        target.links.download.as_deref().ok_or_else(|| {
+            AppError::Api(format!("Attachment '{}' has no download link", filename))
+        })?;
     // download path may be absolute path on the server (starts with /); resolve against base_url.
     let download_url = if download_path.starts_with("http") {
         download_path.to_string()
     } else {
-        format!("{}{}", client.base_url().trim_end_matches('/'), download_path)
+        format!(
+            "{}{}",
+            client.base_url().trim_end_matches('/'),
+            download_path
+        )
     };
     let resp = client
         .inner()
@@ -280,12 +289,13 @@ mod tests {
         });
         // Mock the download endpoint
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/download/attachments/123/test.bin");
+            when.method(GET).path("/download/attachments/123/test.bin");
             then.status(200).body(vec![1u8, 2, 3, 4]);
         });
         let client = test_client(&server.base_url());
-        let result = get_attachment(&client, "123", "test.bin").await.expect("ok");
+        let result = get_attachment(&client, "123", "test.bin")
+            .await
+            .expect("ok");
         assert_eq!(result.as_ref(), &[1u8, 2, 3, 4]);
     }
 
@@ -307,7 +317,11 @@ mod tests {
         let result = get_attachment(&client, "123", "missing.pdf").await;
         match result {
             Err(AppError::Api(msg)) => {
-                assert!(msg.contains("missing.pdf"), "error should contain filename: {}", msg);
+                assert!(
+                    msg.contains("missing.pdf"),
+                    "error should contain filename: {}",
+                    msg
+                );
             }
             other => panic!("expected AppError::Api, got {:?}", other),
         }

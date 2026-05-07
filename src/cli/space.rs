@@ -8,7 +8,7 @@
 
 use anyhow::Context;
 
-use crate::api::{Client, list_all_spaces};
+use crate::api::{list_all_spaces, Client};
 use crate::cli::{Cli, SpaceArgs};
 use crate::config;
 use crate::output::OutputFormatter;

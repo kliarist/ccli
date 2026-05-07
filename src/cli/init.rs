@@ -28,12 +28,8 @@ pub async fn run(_cli: &Cli) -> anyhow::Result<()> {
     // --- URL prompt: pre-fill on re-run (D-03) + scheme validation ---
     let url: String = Input::with_theme(&theme)
         .with_prompt("Confluence URL")
-        .with_initial_text(
-            existing.as_ref().map(|c| c.url.as_str()).unwrap_or(""),
-        )
-        .validate_with(|s: &String| -> Result<(), &'static str> {
-            validate_url(s)
-        })
+        .with_initial_text(existing.as_ref().map(|c| c.url.as_str()).unwrap_or(""))
+        .validate_with(|s: &String| -> Result<(), &'static str> { validate_url(s) })
         .interact_text()
         .context("URL prompt failed")?;
 
@@ -57,9 +53,7 @@ pub async fn run(_cli: &Cli) -> anyhow::Result<()> {
         existing
             .as_ref()
             .map(|c| c.token.clone())
-            .ok_or_else(|| {
-                anyhow::anyhow!("A Personal Access Token is required on first run.")
-            })?
+            .ok_or_else(|| anyhow::anyhow!("A Personal Access Token is required on first run."))?
     } else {
         raw_pat
     };
@@ -76,10 +70,7 @@ pub async fn run(_cli: &Cli) -> anyhow::Result<()> {
     };
     config::save(&cfg).context("Failed to save config")?;
 
-    println!(
-        "Connected as {} — configuration saved.",
-        display_name
-    );
+    println!("Connected as {} — configuration saved.", display_name);
     Ok(())
 }
 
@@ -155,7 +146,12 @@ mod tests {
         // Property: for any non-empty input, the hint MUST NOT equal the input.
         let inputs = ["a", "ab", "abc", "abcd", "abcde", "abcdef", "abcdefghij"];
         for i in inputs {
-            assert_ne!(mask_pat_hint(i), i, "hint must not be identical to token: {}", i);
+            assert_ne!(
+                mask_pat_hint(i),
+                i,
+                "hint must not be identical to token: {}",
+                i
+            );
         }
     }
 

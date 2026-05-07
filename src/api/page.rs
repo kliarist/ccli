@@ -177,9 +177,10 @@ pub async fn list_all_pages(
 
         match resp.status().as_u16() {
             200 => {
-                let page: ContentListResponse = resp.json().await.map_err(|e| {
-                    AppError::Api(format!("Failed to parse content list: {}", e))
-                })?;
+                let page: ContentListResponse = resp
+                    .json()
+                    .await
+                    .map_err(|e| AppError::Api(format!("Failed to parse content list: {}", e)))?;
                 let fetched = page.results.len() as u32;
                 let has_next = page.links.next.is_some();
                 all.extend(page.results);
@@ -220,18 +221,13 @@ pub async fn get_page_detail(client: &Client, page_id: &str) -> Result<PageDetai
     );
     debug!("Fetching page detail: GET {}", url);
 
-    let resp = client
-        .inner()
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                AppError::Network(format!("Cannot reach server: {}", e))
-            } else {
-                AppError::Network(e.to_string())
-            }
-        })?;
+    let resp = client.inner().get(&url).send().await.map_err(|e| {
+        if e.is_connect() || e.is_timeout() {
+            AppError::Network(format!("Cannot reach server: {}", e))
+        } else {
+            AppError::Network(e.to_string())
+        }
+    })?;
 
     match resp.status().as_u16() {
         200 => resp
@@ -625,16 +621,9 @@ mod tests {
             }));
         });
         let client = test_client(&server.base_url());
-        create_page(
-            &client,
-            "DEV",
-            "P",
-            "<p>x</p>",
-            ContentType::BlogPost,
-            None,
-        )
-        .await
-        .expect("ok");
+        create_page(&client, "DEV", "P", "<p>x</p>", ContentType::BlogPost, None)
+            .await
+            .expect("ok");
         m.assert();
     }
 
@@ -646,15 +635,8 @@ mod tests {
             then.status(401);
         });
         let client = test_client(&server.base_url());
-        let result = create_page(
-            &client,
-            "DEV",
-            "Title",
-            "<p>x</p>",
-            ContentType::Page,
-            None,
-        )
-        .await;
+        let result =
+            create_page(&client, "DEV", "Title", "<p>x</p>", ContentType::Page, None).await;
         assert!(matches!(result, Err(AppError::Auth(_))));
     }
 
@@ -703,8 +685,7 @@ mod tests {
             then.status(409);
         });
         let client = test_client(&server.base_url());
-        let result =
-            update_page(&client, "42", "T", "DEV", "<p/>", ContentType::Page, 1).await;
+        let result = update_page(&client, "42", "T", "DEV", "<p/>", ContentType::Page, 1).await;
         match result {
             Err(AppError::Api(msg)) => {
                 assert!(msg.starts_with("Conflict:"), "got: {}", msg)
@@ -721,8 +702,7 @@ mod tests {
             then.status(401);
         });
         let client = test_client(&server.base_url());
-        let result =
-            update_page(&client, "42", "T", "DEV", "<p/>", ContentType::Page, 1).await;
+        let result = update_page(&client, "42", "T", "DEV", "<p/>", ContentType::Page, 1).await;
         assert!(matches!(result, Err(AppError::Auth(_))));
     }
 
@@ -734,8 +714,7 @@ mod tests {
             then.status(500);
         });
         let client = test_client(&server.base_url());
-        let result =
-            update_page(&client, "42", "T", "DEV", "<p/>", ContentType::Page, 1).await;
+        let result = update_page(&client, "42", "T", "DEV", "<p/>", ContentType::Page, 1).await;
         assert!(matches!(result, Err(AppError::Api(_))));
     }
 }

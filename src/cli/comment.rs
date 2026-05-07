@@ -27,9 +27,8 @@ pub async fn run(_cli: &Cli, args: &CommentArgs) -> anyhow::Result<()> {
 /// `ccli comment add <PAGE-ID>` — open $EDITOR, wrap, POST.
 async fn handle_add(page_id: &str) -> anyhow::Result<()> {
     // T-03-14: digits-only validation prevents path traversal in /tmp/ccli-comment-{id}.txt
-    let id = sanitize_id(page_id).ok_or_else(|| {
-        AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id))
-    })?;
+    let id = sanitize_id(page_id)
+        .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id)))?;
 
     let cfg = config::load_or_error()
         .map_err(anyhow::Error::from)

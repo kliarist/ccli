@@ -8,20 +8,16 @@ use clap::{Parser, Subcommand};
 
 use crate::output::{parse_columns, OutputConfig};
 
-pub mod init;
-pub mod space;
-pub mod page;
+pub mod attachment;
 pub mod blog;
 pub mod comment;
-pub mod attachment;
+pub mod init;
+pub mod page;
+pub mod space;
 
 /// `ccli` — Confluence Data Center CLI.
 #[derive(Parser, Debug)]
-#[command(
-    name = "ccli",
-    about = "Confluence Data Center CLI",
-    version,
-)]
+#[command(name = "ccli", about = "Confluence Data Center CLI", version)]
 pub struct Cli {
     /// Output tab-separated values (no box-drawing characters).
     /// When stdout is piped, TSV is the default even without this flag.
@@ -260,8 +256,14 @@ mod tests {
     #[test]
     fn no_subcommand_launches_tui() {
         let result = Cli::try_parse_from(["ccli"]);
-        assert!(result.is_ok(), "bare ccli should parse successfully — D-10 launches TUI");
-        assert!(result.unwrap().command.is_none(), "command must be None when no subcommand given");
+        assert!(
+            result.is_ok(),
+            "bare ccli should parse successfully — D-10 launches TUI"
+        );
+        assert!(
+            result.unwrap().command.is_none(),
+            "command must be None when no subcommand given"
+        );
     }
 
     #[test]
@@ -273,12 +275,21 @@ mod tests {
     #[test]
     fn output_config_passes_through_flags() {
         let cli = Cli::try_parse_from([
-            "ccli", "--plain", "--no-headers", "--columns", "key, name", "init",
-        ]).expect("parse");
+            "ccli",
+            "--plain",
+            "--no-headers",
+            "--columns",
+            "key, name",
+            "init",
+        ])
+        .expect("parse");
         let cfg = cli.output_config();
         assert!(cfg.plain);
         assert!(cfg.no_headers);
-        assert_eq!(cfg.columns.as_deref(), Some(&["key".to_string(), "name".to_string()][..]));
+        assert_eq!(
+            cfg.columns.as_deref(),
+            Some(&["key".to_string(), "name".to_string()][..])
+        );
     }
 
     #[test]
@@ -292,7 +303,9 @@ mod tests {
     fn parses_page_list_with_space_key_positional() {
         let cli = Cli::try_parse_from(["ccli", "page", "list", "DEV"]).expect("parse");
         match cli.command {
-            Some(Commands::Page(PageArgs { command: PageCommands::List { space_key } })) => {
+            Some(Commands::Page(PageArgs {
+                command: PageCommands::List { space_key },
+            })) => {
                 assert_eq!(space_key, "DEV");
             }
             other => panic!("expected Commands::Page(List), got {:?}", other),
@@ -302,14 +315,19 @@ mod tests {
     #[test]
     fn page_list_without_space_key_fails() {
         let result = Cli::try_parse_from(["ccli", "page", "list"]);
-        assert!(result.is_err(), "D-34: space_key is required positional arg");
+        assert!(
+            result.is_err(),
+            "D-34: space_key is required positional arg"
+        );
     }
 
     #[test]
     fn parses_page_view_with_page_id() {
         let cli = Cli::try_parse_from(["ccli", "page", "view", "12345"]).expect("parse");
         match cli.command {
-            Some(Commands::Page(PageArgs { command: PageCommands::View { page_id } })) => {
+            Some(Commands::Page(PageArgs {
+                command: PageCommands::View { page_id },
+            })) => {
                 assert_eq!(page_id, "12345");
             }
             other => panic!("expected Commands::Page(View), got {:?}", other),
@@ -319,11 +337,18 @@ mod tests {
     #[test]
     fn parses_page_create_with_all_flags() {
         let cli = Cli::try_parse_from([
-            "ccli", "page", "create",
-            "--space", "DEV", "--title", "Hello", "--parent", "99",
-        ]).expect("parse");
+            "ccli", "page", "create", "--space", "DEV", "--title", "Hello", "--parent", "99",
+        ])
+        .expect("parse");
         match cli.command {
-            Some(Commands::Page(PageArgs { command: PageCommands::Create { space, title, parent } })) => {
+            Some(Commands::Page(PageArgs {
+                command:
+                    PageCommands::Create {
+                        space,
+                        title,
+                        parent,
+                    },
+            })) => {
                 assert_eq!(space.as_deref(), Some("DEV"));
                 assert_eq!(title.as_deref(), Some("Hello"));
                 assert_eq!(parent.as_deref(), Some("99"));
@@ -336,7 +361,14 @@ mod tests {
     fn parses_page_create_with_no_flags_for_dialoguer_fallback() {
         let cli = Cli::try_parse_from(["ccli", "page", "create"]).expect("parse");
         match cli.command {
-            Some(Commands::Page(PageArgs { command: PageCommands::Create { space, title, parent } })) => {
+            Some(Commands::Page(PageArgs {
+                command:
+                    PageCommands::Create {
+                        space,
+                        title,
+                        parent,
+                    },
+            })) => {
                 assert!(space.is_none());
                 assert!(title.is_none());
                 assert!(parent.is_none());
@@ -349,7 +381,9 @@ mod tests {
     fn parses_page_edit_with_page_id() {
         let cli = Cli::try_parse_from(["ccli", "page", "edit", "12345"]).expect("parse");
         match cli.command {
-            Some(Commands::Page(PageArgs { command: PageCommands::Edit { page_id } })) => {
+            Some(Commands::Page(PageArgs {
+                command: PageCommands::Edit { page_id },
+            })) => {
                 assert_eq!(page_id, "12345");
             }
             other => panic!("expected Commands::Page(Edit), got {:?}", other),
@@ -361,7 +395,9 @@ mod tests {
         let cli = Cli::try_parse_from(["ccli", "blog", "list", "DEV"]).expect("parse");
         assert!(matches!(
             cli.command,
-            Some(Commands::Blog(BlogArgs { command: BlogCommands::List { .. } }))
+            Some(Commands::Blog(BlogArgs {
+                command: BlogCommands::List { .. }
+            }))
         ));
     }
 
@@ -369,7 +405,9 @@ mod tests {
     fn parses_blog_view_with_post_id() {
         let cli = Cli::try_parse_from(["ccli", "blog", "view", "77"]).expect("parse");
         match cli.command {
-            Some(Commands::Blog(BlogArgs { command: BlogCommands::View { post_id } })) => {
+            Some(Commands::Blog(BlogArgs {
+                command: BlogCommands::View { post_id },
+            })) => {
                 assert_eq!(post_id, "77");
             }
             other => panic!("expected Commands::Blog(View), got {:?}", other),
@@ -378,11 +416,13 @@ mod tests {
 
     #[test]
     fn parses_blog_create_without_parent_flag() {
-        let cli = Cli::try_parse_from([
-            "ccli", "blog", "create", "--space", "DEV", "--title", "Hi",
-        ]).expect("parse");
+        let cli =
+            Cli::try_parse_from(["ccli", "blog", "create", "--space", "DEV", "--title", "Hi"])
+                .expect("parse");
         match cli.command {
-            Some(Commands::Blog(BlogArgs { command: BlogCommands::Create { space, title } })) => {
+            Some(Commands::Blog(BlogArgs {
+                command: BlogCommands::Create { space, title },
+            })) => {
                 assert_eq!(space.as_deref(), Some("DEV"));
                 assert_eq!(title.as_deref(), Some("Hi"));
             }
@@ -396,7 +436,10 @@ mod tests {
         let result = Cli::try_parse_from([
             "ccli", "blog", "create", "--space", "DEV", "--title", "Hi", "--parent", "99",
         ]);
-        assert!(result.is_err(), "Pitfall 5: --parent must not be valid on `ccli blog create`");
+        assert!(
+            result.is_err(),
+            "Pitfall 5: --parent must not be valid on `ccli blog create`"
+        );
     }
 
     #[test]
@@ -404,7 +447,9 @@ mod tests {
         let cli = Cli::try_parse_from(["ccli", "blog", "edit", "77"]).expect("parse");
         assert!(matches!(
             cli.command,
-            Some(Commands::Blog(BlogArgs { command: BlogCommands::Edit { .. } }))
+            Some(Commands::Blog(BlogArgs {
+                command: BlogCommands::Edit { .. }
+            }))
         ));
     }
 }

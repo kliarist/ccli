@@ -24,21 +24,20 @@ use crate::output::OutputFormatter;
 pub async fn run(cli: &Cli, args: &AttachmentArgs) -> anyhow::Result<()> {
     match &args.command {
         AttachmentCommands::List { page_id } => handle_list(cli, page_id).await,
-        AttachmentCommands::Get { page_id, filename, output } => {
-            handle_get(page_id, filename, output.as_deref()).await
-        }
-        AttachmentCommands::Add { page_id, file_path } => {
-            handle_add(page_id, file_path).await
-        }
+        AttachmentCommands::Get {
+            page_id,
+            filename,
+            output,
+        } => handle_get(page_id, filename, output.as_deref()).await,
+        AttachmentCommands::Add { page_id, file_path } => handle_add(page_id, file_path).await,
     }
 }
 
 // ─── List (ATTCH-01, D-56) ────────────────────────────────────────────────────
 
 async fn handle_list(cli: &Cli, page_id: &str) -> anyhow::Result<()> {
-    let id = sanitize_id(page_id).ok_or_else(|| {
-        AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id))
-    })?;
+    let id = sanitize_id(page_id)
+        .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id)))?;
     let cfg = config::load_or_error()
         .map_err(anyhow::Error::from)
         .context("No configuration found. Run 'ccli init' to configure.")?;
@@ -61,11 +60,7 @@ pub(crate) fn build_list_rows(attachments: &[Attachment]) -> Vec<Vec<String>> {
     attachments
         .iter()
         .map(|a| {
-            let size_bytes = a
-                .extensions
-                .as_ref()
-                .and_then(|e| e.file_size)
-                .unwrap_or(0);
+            let size_bytes = a.extensions.as_ref().and_then(|e| e.file_size).unwrap_or(0);
             let media = a
                 .extensions
                 .as_ref()
@@ -84,14 +79,9 @@ pub(crate) fn build_list_rows(attachments: &[Attachment]) -> Vec<Vec<String>> {
 
 // ─── Get (ATTCH-02, D-54) ─────────────────────────────────────────────────────
 
-async fn handle_get(
-    page_id: &str,
-    filename: &str,
-    output: Option<&str>,
-) -> anyhow::Result<()> {
-    let id = sanitize_id(page_id).ok_or_else(|| {
-        AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id))
-    })?;
+async fn handle_get(page_id: &str, filename: &str, output: Option<&str>) -> anyhow::Result<()> {
+    let id = sanitize_id(page_id)
+        .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id)))?;
     let cfg = config::load_or_error()
         .map_err(anyhow::Error::from)
         .context("No configuration found. Run 'ccli init' to configure.")?;
@@ -106,12 +96,8 @@ async fn handle_get(
         .map(PathBuf::from)
         .unwrap_or_else(|| Path::new(".").join(filename));
 
-    std::fs::write(&dest, &bytes).with_context(|| {
-        format!(
-            "attachment get: could not write '{}'",
-            dest.display()
-        )
-    })?;
+    std::fs::write(&dest, &bytes)
+        .with_context(|| format!("attachment get: could not write '{}'", dest.display()))?;
 
     println!("Downloaded: {} \u{2192} {}", filename, dest.display());
     Ok(())
@@ -120,9 +106,8 @@ async fn handle_get(
 // ─── Add (ATTCH-03, D-55) ─────────────────────────────────────────────────────
 
 async fn handle_add(page_id: &str, file_path: &str) -> anyhow::Result<()> {
-    let id = sanitize_id(page_id).ok_or_else(|| {
-        AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id))
-    })?;
+    let id = sanitize_id(page_id)
+        .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id)))?;
     let path = Path::new(file_path);
     if !path.exists() {
         anyhow::bail!("attachment add: '{}' not found", file_path);
@@ -191,13 +176,7 @@ mod tests {
         Attachment, AttachmentExtensions, AttachmentLinks, AttachmentVersion,
     };
 
-    fn make_attachment(
-        id: &str,
-        title: &str,
-        size: u64,
-        media: &str,
-        when: &str,
-    ) -> Attachment {
+    fn make_attachment(id: &str, title: &str, size: u64, media: &str, when: &str) -> Attachment {
         Attachment {
             id: id.to_string(),
             title: title.to_string(),
@@ -245,21 +224,39 @@ mod tests {
 
     #[test]
     fn attachment_list_rows_have_4_columns() {
-        let a1 = make_attachment("1", "design.png", 145408, "image/png", "2026-05-01T10:00:00Z");
-        let a2 = make_attachment("2", "spec.pdf", 1048576, "application/pdf", "2026-04-30T08:00:00Z");
+        let a1 = make_attachment(
+            "1",
+            "design.png",
+            145408,
+            "image/png",
+            "2026-05-01T10:00:00Z",
+        );
+        let a2 = make_attachment(
+            "2",
+            "spec.pdf",
+            1048576,
+            "application/pdf",
+            "2026-04-30T08:00:00Z",
+        );
         let rows = build_list_rows(&[a1, a2]);
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0], vec![
-            "design.png".to_string(),
-            "142 KB".to_string(),
-            "image/png".to_string(),
-            "2026-05-01".to_string(),
-        ]);
-        assert_eq!(rows[1], vec![
-            "spec.pdf".to_string(),
-            "1 MB".to_string(),
-            "application/pdf".to_string(),
-            "2026-04-30".to_string(),
-        ]);
+        assert_eq!(
+            rows[0],
+            vec![
+                "design.png".to_string(),
+                "142 KB".to_string(),
+                "image/png".to_string(),
+                "2026-05-01".to_string(),
+            ]
+        );
+        assert_eq!(
+            rows[1],
+            vec![
+                "spec.pdf".to_string(),
+                "1 MB".to_string(),
+                "application/pdf".to_string(),
+                "2026-04-30".to_string(),
+            ]
+        );
     }
 }
