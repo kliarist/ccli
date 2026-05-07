@@ -93,9 +93,11 @@ async fn run_app(
     terminal: &mut ratatui::DefaultTerminal,
     client: Client,
     base_url: String,
-    mut spaces_rx: oneshot::Receiver<Result<Vec<Space>, AppError>>,
+    spaces_rx: oneshot::Receiver<Result<Vec<Space>, AppError>>,
 ) -> anyhow::Result<()> {
     let mut app = App::new();
+    // WR-03: wrap in Option so we stop polling once the channel delivers its value.
+    let mut spaces_rx: Option<oneshot::Receiver<Result<Vec<Space>, AppError>>> = Some(spaces_rx);
 
     // Channel for preview detail fetches — buffer 4 to avoid blocking spawned tasks
     let (preview_tx, mut preview_rx) = tokio::sync::mpsc::channel::<(
@@ -123,11 +125,16 @@ async fn run_app(
             }
         })?;
 
-        // Check for completed space list fetch (non-blocking try_recv)
-        if let Ok(fetch_result) = spaces_rx.try_recv() {
-            match fetch_result {
-                Ok(spaces) => app.set_spaces(spaces),
-                Err(e) => app.set_fetch_error(&e),
+        // Check for completed space list fetch (non-blocking try_recv).
+        // WR-03: poll only while the Option is Some; set to None after receiving
+        // to avoid 6000+ no-op try_recv calls on a closed channel.
+        if let Some(rx) = spaces_rx.as_mut() {
+            if let Ok(fetch_result) = rx.try_recv() {
+                spaces_rx = None; // stop polling
+                match fetch_result {
+                    Ok(spaces) => app.set_spaces(spaces),
+                    Err(e) => app.set_fetch_error(&e),
+                }
             }
         }
 
