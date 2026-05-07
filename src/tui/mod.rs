@@ -427,7 +427,7 @@ async fn handle_edit_page(
         .and_then(|s| s.value.clone())
         .unwrap_or_default();
 
-    let temp_path = std::path::PathBuf::from(format!("/tmp/ccli-edit-{}.xml", page_id));
+    let temp_path = std::env::temp_dir().join(format!("ccli-edit-{}.xml", page_id));
 
     // Phase 2: suspend TUI — ratatui::restore() handles raw mode + alt screen + panic hook.
     ratatui::restore();

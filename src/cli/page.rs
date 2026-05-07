@@ -203,7 +203,7 @@ pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> a
 
     let body = extract_body_value(&detail);
 
-    let temp_path = std::path::PathBuf::from(format!("/tmp/ccli-edit-{}.xml", id));
+    let temp_path = std::env::temp_dir().join(format!("ccli-edit-{}.xml", id));
     std::fs::write(&temp_path, &body)
         .with_context(|| format!("Failed to write current content to {:?}", temp_path))?;
 
