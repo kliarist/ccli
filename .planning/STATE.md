@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 4 UI-SPEC approved
-last_updated: "2026-05-07T19:26:25.514Z"
+status: verifying
+stopped_at: Completed 04-05-PLAN.md — all 4 tasks done, human verification approved
+last_updated: "2026-05-07T19:31:19.737Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 4
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-04-24)
 
 Phase: 04 (comments-attachments-search) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-07
 
-Progress: [██████████] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [██████████] 95%
 | Phase 04 P01 | 4min | 3 tasks | 5 files |
 | Phase 04 P02 | 5min | 3 tasks | 5 files |
 | Phase 04 P04 | 3min | 2 tasks | 3 files |
+| Phase 04 P05 | 15min | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Recent decisions affecting current work:
 - [Phase 03-05]: D-35 TTY TUI launch deferred to Plan 06 — handle_list_typed always prints table (correct when piped, deliberate gap on TTY)
 - [Phase 03-05]: sanitize_id() digits-only validation guards /tmp path construction (T-03-14 path traversal mitigation)
 - [Phase ?]: cli/comment.rs plain-text to storage XML wrapping contract implemented
+- [Phase ?]: modal_h increased from 16 to 17 to accommodate new c-View-comments row in pages help modal
+- [Phase ?]: render_comments tick wired in timeout branch (not poll branch) to match PagesBrowse pattern
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-07T19:26:25.506Z
-Stopped at: Phase 4 UI-SPEC approved
+Last session: 2026-05-07T19:31:19.731Z
+Stopped at: Completed 04-05-PLAN.md — all 4 tasks done, human verification approved
 Resume file: None

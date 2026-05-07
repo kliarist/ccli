@@ -38,6 +38,7 @@ Complete CMNT-01: CommentsBrowse TUI screen rendered and wired into the event lo
 | 1 | Create src/tui/screens/comments.rs and register module | 1f5500a | src/tui/screens/comments.rs, src/tui/screens/mod.rs |
 | 2 | Update pages.rs help bar and modal for c-comments binding | 2e63026 | src/tui/screens/pages.rs |
 | 3 | Wire render_comments into tui event loop | ed7d0d8 | src/tui/mod.rs |
+| 4 | Human verification — TUI comment browsing end-to-end | (checkpoint) | — |
 
 ## What Was Built
 
@@ -101,4 +102,4 @@ Files created/modified:
 
 Commits verified: 1f5500a, 2e63026, ed7d0d8
 
-Task 4 (checkpoint:human-verify) awaiting user verification.
+Task 4 (checkpoint:human-verify) PASSED — user approved all 10 verification steps on 2026-05-07.
