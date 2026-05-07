@@ -7,9 +7,7 @@
 //! Visual contract source: 03-UI-SPEC.md
 //! Locked decisions implemented: D-31, D-37, D-41, D-42, D-43, D-44.
 //!
-//! Note: render_pages and helpers are wired to the event loop in Plan 06 (src/tui/mod.rs).
-//! dead_code suppressed until that wiring is in place.
-#![allow(dead_code)]
+//! Wired into the event loop in src/tui/mod.rs (Plan 06).
 
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};

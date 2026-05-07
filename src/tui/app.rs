@@ -84,7 +84,6 @@ pub struct App {
     pub error: Option<String>,
     /// Phase 3 (D-31): screen navigation stack. Empty = single SpacesBrowse view.
     /// Push PagesBrowse on Enter (D-30); pop on Esc with no overlay.
-    #[allow(dead_code)]
     pub screen_stack: Vec<Screen>,
 }
 
@@ -613,10 +612,14 @@ impl PagesBrowseState {
                 }
                 KeyCode::Char('?') => { self.browse_state = AppState::Modal; KeyAction::None }
                 KeyCode::Enter | KeyCode::Char('o') => {
-                    // D-32: Enter == o — open in browser
-                    if let Some(id) = self.selected_id() {
-                        KeyAction::OpenBrowser(id)
-                    } else { KeyAction::None }
+                    // D-32: Enter == o — open in browser.
+                    // WR-02 fix: carry the webui PATH from the API response (D-24),
+                    // NOT the page id. The event loop joins it with base_url and
+                    // calls open::that(). The page id is unsuitable as a URL.
+                    match self.selected_page().and_then(|p| p.links.webui.clone()) {
+                        Some(webui) => KeyAction::OpenBrowser(webui),
+                        None => KeyAction::None,
+                    }
                 }
                 KeyCode::Char('e') => {
                     // D-41: edit selected page in $EDITOR
@@ -991,24 +994,52 @@ mod tests {
     }
 
     #[test]
-    fn pages_state_handle_key_enter_returns_open_browser_d32() {
+    fn pages_state_handle_key_enter_returns_open_browser_with_webui_path_d32_wr02() {
+        // WR-02: OpenBrowser must carry the webui PATH (e.g. "/x/99"), not the page id.
+        // make_page builds webui = Some("/x/{id}").
         let mut s = PagesBrowseState::with_pages(
             "DEV", ContentType::Page, vec![make_page("99", "Alpha")],
         );
         s.list_state.select(Some(0));
         let action = s.handle_key(KeyCode::Enter);
-        assert_eq!(action, KeyAction::OpenBrowser("99".to_string()),
-                   "D-32: Enter behaves like 'o'");
+        assert_eq!(
+            action,
+            KeyAction::OpenBrowser("/x/99".to_string()),
+            "D-32 + WR-02: Enter must emit OpenBrowser carrying the webui path"
+        );
     }
 
     #[test]
-    fn pages_state_handle_key_o_returns_open_browser() {
+    fn pages_state_handle_key_o_returns_open_browser_with_webui_path_wr02() {
         let mut s = PagesBrowseState::with_pages(
             "DEV", ContentType::Page, vec![make_page("99", "Alpha")],
         );
         s.list_state.select(Some(0));
         let action = s.handle_key(KeyCode::Char('o'));
-        assert_eq!(action, KeyAction::OpenBrowser("99".to_string()));
+        assert_eq!(
+            action,
+            KeyAction::OpenBrowser("/x/99".to_string()),
+            "WR-02: 'o' must emit OpenBrowser carrying the webui path, not the id"
+        );
+    }
+
+    #[test]
+    fn pages_state_handle_key_o_returns_none_when_webui_missing() {
+        // Build a Page with links.webui = None and verify the handler returns None
+        // gracefully (no panic, no garbage URL).
+        let page = Page {
+            id: "1".to_string(),
+            title: "NoWebui".to_string(),
+            content_type: "page".to_string(),
+            version: None,
+            ancestors: None,
+            links: crate::api::page::PageLinks { webui: None, self_url: None },
+        };
+        let mut s = PagesBrowseState::with_pages("DEV", ContentType::Page, vec![page]);
+        s.list_state.select(Some(0));
+        let action = s.handle_key(KeyCode::Char('o'));
+        assert_eq!(action, KeyAction::None,
+                   "WR-02: missing webui must be a graceful no-op, not OpenBrowser(\"1\")");
     }
 
     #[test]
