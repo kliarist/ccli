@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (for example 0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create Release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --locked --verbose
+
+      - name: Validate release version
+        id: release_version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Version must be a valid SemVer string, got: $VERSION" >&2
+            exit 1
+          fi
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update version in Cargo.toml
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.release_version.outputs.version }}"/' Cargo.toml
+
+      - name: Build release binary
+        run: cargo build --release --verbose
+
+      - name: Package release artifact
+        run: |
+          mkdir -p dist
+          tar -C target/release -czf "dist/ccli-${{ steps.release_version.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz" ccli
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore: release v${{ steps.release_version.outputs.version }}"
+
+      - name: Create and push tag
+        run: |
+          git tag v${{ steps.release_version.outputs.version }}
+          git push origin main
+          git push origin v${{ steps.release_version.outputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.release_version.outputs.version }}
+          name: v${{ steps.release_version.outputs.version }}
+          body: |
+            Release of `ccli` v${{ steps.release_version.outputs.version }}.
+          files: |
+            dist/ccli-${{ steps.release_version.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz
