@@ -408,7 +408,17 @@ async fn handle_edit_page(
         }
     };
     let title = detail.title.clone();
-    let current_version = detail.version.as_ref().map(|v| v.number).unwrap_or(1);
+    let current_version = match detail.version.as_ref().map(|v| v.number) {
+        Some(v) => v,
+        None => {
+            set_pages_status(
+                app,
+                "Page version missing from API — cannot safely update.".to_string(),
+                StatusStyle::Error,
+            );
+            return;
+        }
+    };
     let space_key = match extract_space_key_from_webui(&detail) {
         Some(k) => k,
         None => {

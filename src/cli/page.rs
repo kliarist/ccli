@@ -188,7 +188,10 @@ pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> a
         .await
         .map_err(anyhow::Error::from)
         .context("Failed to fetch page detail before edit")?;
-    let current_version = detail.version.as_ref().map(|v| v.number).unwrap_or(1);
+    let current_version = detail.version.as_ref().map(|v| v.number)
+        .ok_or_else(|| anyhow::anyhow!(
+            "Page version was not returned by the API — cannot safely update."
+        ))?;
     let title = detail.title.clone();
     // space.key is not part of PageDetail directly in our struct, but it IS required by update_page.
     // We extract it from the API at call time. For now, look it up from the ancestors chain or
