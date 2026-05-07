@@ -311,8 +311,7 @@ fn render_status_bar(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
             let frame = SPINNER_FRAMES[state.spinner_frame % SPINNER_FRAMES.len()];
             Line::from(vec![
                 Span::styled(format!(" {}", frame), Style::default().fg(Color::Cyan)),
-                Span::raw(format!("  Loading {}… {} fetched",
-                                   kind_plural, state.pages_fetched_count)),
+                Span::raw(format!("  Loading {}…", kind_plural)),
             ])
         }
         AppState::Browse | AppState::Modal => {

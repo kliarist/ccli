@@ -298,17 +298,12 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
         match &app.state {
             AppState::Loading => {
                 let spinner = SPINNER_FRAMES[app.spinner_frame % SPINNER_FRAMES.len()];
-                let count_part = if app.spaces_fetched_count > 0 {
-                    format!("Loading spaces… {} fetched", app.spaces_fetched_count)
-                } else {
-                    "Loading spaces…".to_string()
-                };
                 Line::from(vec![
                     Span::styled(
                         format!(" {} ", spinner),
                         Style::default().fg(Color::Cyan),
                     ),
-                    Span::styled(count_part, Style::default()),
+                    Span::styled("Loading spaces…", Style::default()),
                 ])
             }
             AppState::Browse | AppState::Modal => {

@@ -78,8 +78,6 @@ pub struct App {
     pub last_selection_change: Option<Instant>,
     /// Current spinner frame index (advances every 100ms tick during Loading state).
     pub spinner_frame: usize,
-    /// Total spaces fetched so far (for spinner "N fetched" display, Pitfall 7).
-    pub spaces_fetched_count: usize,
     /// If a fetch error occurred, store for status bar rendering.
     pub error: Option<String>,
     /// Phase 3 (D-31): screen navigation stack. Empty = single SpacesBrowse view.
@@ -101,7 +99,6 @@ impl App {
             pending_preview_key: None,
             last_selection_change: None,
             spinner_frame: 0,
-            spaces_fetched_count: 0,
             error: None,
             screen_stack: Vec::new(),
         }
@@ -436,7 +433,6 @@ pub struct PagesBrowseState {
     pub pending_preview_id: Option<String>,
     pub last_selection_change: Option<Instant>,
     pub spinner_frame: usize,
-    pub pages_fetched_count: usize,
     pub error: Option<String>,
     pub status_message: Option<StatusMessage>,
 }
@@ -458,7 +454,6 @@ impl PagesBrowseState {
             pending_preview_id: None,
             last_selection_change: None,
             spinner_frame: 0,
-            pages_fetched_count: 0,
             error: None,
             status_message: None,
         }
