@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation** - Rust project skeleton, Confluence API client, PAT auth, `ccli init`, and output formatting flags
 - [x] **Phase 2: TUI Shell & Spaces** - Ratatui TUI with full keyboard navigation, delivered through the Spaces feature end-to-end (completed 2026-04-28)
-- [ ] **Phase 3: Pages & Blog Posts** - List, view, create, and edit Pages and Blog Posts — the core content workflow
+- [x] **Phase 3: Pages & Blog Posts** - List, view, create, and edit Pages and Blog Posts — the core content workflow (completed 2026-05-07)
 - [ ] **Phase 4: Comments, Attachments & Search** - Page-level comments and attachments, plus CQL search across spaces
 
 ## Phase Details
@@ -81,5 +81,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/? | Not started | - |
 | 2. TUI Shell & Spaces | 5/5 | Complete   | 2026-04-28 |
-| 3. Pages & Blog Posts | 3/4 | In Progress|  |
+| 3. Pages & Blog Posts | 4/4 | Complete   | 2026-05-07 |
 | 4. Comments, Attachments & Search | 0/? | Not started | - |
