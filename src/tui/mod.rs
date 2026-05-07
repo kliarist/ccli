@@ -248,7 +248,14 @@ async fn run_app(
                         }
                         KeyAction::EditPage(page_id) => {
                             // D-41: suspend TUI, run editor, PUT, restore TUI
-                            handle_edit_page(&mut app, &client, &page_id, terminal).await;
+                            // CR-02: read content_type from the active screen so blog posts
+                            // are updated as "blogpost", not "page".
+                            let ct = app.screen_stack.last()
+                                .and_then(|s| if let Screen::PagesBrowse { content_type, .. } = s {
+                                    Some(*content_type)
+                                } else { None })
+                                .unwrap_or(ContentType::Page);
+                            handle_edit_page(&mut app, &client, &page_id, ct, terminal).await;
                         }
                         KeyAction::None => {}
                     }
@@ -375,6 +382,7 @@ async fn handle_edit_page(
     app: &mut App,
     client: &Client,
     page_id: &str,
+    content_type: ContentType,
     terminal: &mut ratatui::DefaultTerminal,
 ) {
     // Validate id is digits-only (path traversal mitigation — T-03-20)
@@ -445,7 +453,7 @@ async fn handle_edit_page(
         &title,
         &space_key,
         &new_xml,
-        ContentType::Page,
+        content_type,
         current_version,
     )
     .await;
