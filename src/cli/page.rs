@@ -422,7 +422,6 @@ mod tests {
 
     use crate::config::Config;
     use crate::api::Client;
-    use crate::output::OutputConfig;
     use httpmock::prelude::*;
 
     fn test_client(base_url: &str) -> Client {
