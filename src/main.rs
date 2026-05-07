@@ -39,6 +39,9 @@ async fn run() -> anyhow::Result<()> {
         Some(Commands::Space(ref args)) => match args.command {
             SpaceCommands::List => cli::space::run(&cli, args).await,
         },
+        // Task 2 will replace these stubs with real dispatch:
+        Some(Commands::Page(_)) => Err(anyhow::anyhow!("page subcommand not yet wired (Plan 03-05 Task 2)")),
+        Some(Commands::Blog(_)) => Err(anyhow::anyhow!("blog subcommand not yet wired (Plan 03-05 Task 2)")),
         None => tui::run().await,  // D-10: bare ccli launches TUI
     }
 }
