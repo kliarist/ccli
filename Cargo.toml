@@ -3,6 +3,7 @@ name = "ccli"
 version = "0.1.0"
 edition = "2021"
 description = "Confluence Data Center CLI"
+license = "MIT"
 
 [[bin]]
 name = "ccli"

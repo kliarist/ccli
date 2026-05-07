@@ -1,8 +1,8 @@
 # ccli
 
-Confluence Data Center CLI and terminal UI written in Rust.
+Confluence Data Center CLI and terminal UI written in Rust, for when the browser tab count has become a moral issue.
 
-`ccli` lets you browse spaces, pages, comments, and attachments from the terminal. It supports both command-oriented usage and an interactive TUI.
+`ccli` lets you browse spaces, pages, comments, and attachments from the terminal. It supports both command-oriented usage and an interactive TUI, so you can stay in the shell and pretend that is a lifestyle choice.
 
 ## Features
 
@@ -13,7 +13,7 @@ Confluence Data Center CLI and terminal UI written in Rust.
 - Blog post listing, viewing, creating, and editing
 - Plain-text comment authoring in `$EDITOR`
 - Attachment listing, download, and upload
-- Pretty table output for interactive terminals and TSV output for pipes
+- Pretty table output for interactive terminals and TSV output for pipes, because the tool should know when it is being watched
 
 ## Build
 
@@ -31,7 +31,7 @@ cargo test -- --nocapture
 
 ## Configuration
 
-Run:
+First-time setup:
 
 ```bash
 cargo run -- init
@@ -48,7 +48,7 @@ ccli init
 - Confluence base URL
 - Personal Access Token
 
-The CLI validates the connection before saving the config.
+The CLI validates the connection before saving the config, so bad credentials do not get a permanent home.
 
 Config file location:
 
@@ -69,7 +69,7 @@ Environment variable overrides are supported:
 - `CCLI_TOKEN`
 - `RUST_LOG`
 
-If both `CCLI_URL` and `CCLI_TOKEN` are set, `ccli` can run without a config file.
+If both `CCLI_URL` and `CCLI_TOKEN` are set, `ccli` can run without a config file. Handy for CI, containers, or committing fewer secrets to muscle memory.
 
 ## Usage
 
@@ -202,4 +202,6 @@ Page and blog editing use Confluence storage XML. Comment editing uses plain tex
 
 ## License
 
-Add a project license here if you intend to publish or distribute the tool.
+MIT. See [LICENSE](/Users/thekliar/Dev/projects/5soft/confluence-cli/LICENSE).
+
+<a href='https://ko-fi.com/V7V81Z4ZAU' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
