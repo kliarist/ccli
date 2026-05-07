@@ -23,7 +23,7 @@
 
 - [x] **PAGE-01**: User can list pages within a space in a TUI list + preview pane
 - [ ] **PAGE-02**: User can search pages using a CQL expression (`ccli page search "type=page AND space=DEV AND text~\"deploy\""`)
-- [ ] **PAGE-03**: User can fuzzy-filter the page list in the TUI by title
+- [x] **PAGE-03**: User can fuzzy-filter the page list in the TUI by title
 - [x] **PAGE-04**: User can view full page content (storage XML or plain-text rendering) in the TUI preview pane
 - [x] **PAGE-05**: User can create a new page by running `ccli page create`, which opens `$EDITOR` with a storage XML template
 - [x] **PAGE-06**: User can edit an existing page's storage XML by running `ccli page edit <PAGE-ID>`, which opens `$EDITOR`
@@ -127,7 +127,7 @@
 | SPC-04 | Phase 2 | Complete |
 | PAGE-01 | Phase 3 | Complete |
 | PAGE-02 | Phase 4 | Pending |
-| PAGE-03 | Phase 3 | Pending |
+| PAGE-03 | Phase 3 | Complete |
 | PAGE-04 | Phase 3 | Complete |
 | PAGE-05 | Phase 3 | Complete |
 | PAGE-06 | Phase 3 | Complete |

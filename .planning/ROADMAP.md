@@ -81,5 +81,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/? | Not started | - |
 | 2. TUI Shell & Spaces | 5/5 | Complete   | 2026-04-28 |
-| 3. Pages & Blog Posts | 1/4 | In Progress|  |
+| 3. Pages & Blog Posts | 3/4 | In Progress|  |
 | 4. Comments, Attachments & Search | 0/? | Not started | - |
