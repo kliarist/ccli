@@ -375,7 +375,7 @@ pub async fn update_page(
         })?;
 
     match resp.status().as_u16() {
-        200 => Ok(()),
+        200 | 204 => Ok(()),
         409 => Err(AppError::Api(format!(
             "Conflict: page was updated by someone else (version {}).",
             current_version
