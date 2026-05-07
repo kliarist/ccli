@@ -12,6 +12,8 @@ pub mod init;
 pub mod space;
 pub mod page;
 pub mod blog;
+pub mod comment;
+pub mod attachment;
 
 /// `ccli` — Confluence Data Center CLI.
 #[derive(Parser, Debug)]
@@ -49,7 +51,10 @@ pub enum Commands {
     Page(PageArgs),
     /// List, view, create, or edit Confluence blog posts (D-37 — mirror of Page, no --parent on create).
     Blog(BlogArgs),
-    // Phase 4 will add: Comment(...), Attachment(...)
+    /// Add or list comments on a Confluence page (D-48..D-53).
+    Comment(CommentArgs),
+    /// List, download, or upload attachments on a Confluence page (D-54..D-56).
+    Attachment(AttachmentArgs),
 }
 
 /// Arguments for the `space` subcommand group.
@@ -103,6 +108,14 @@ pub enum PageCommands {
         /// Page ID (numeric string).
         page_id: String,
     },
+    /// Search pages by CQL expression (D-45..D-47). Always table output, no TUI.
+    Search {
+        /// CQL expression (positional). Example: "type=page AND space=DEV AND text~deploy"
+        cql: String,
+        /// Maximum results to return (D-46).
+        #[arg(long, default_value_t = 25)]
+        limit: u32,
+    },
 }
 
 /// Arguments for the `blog` subcommand group (D-37 — mirror of Page).
@@ -139,6 +152,57 @@ pub enum BlogCommands {
     Edit {
         /// Blog post ID (numeric string).
         post_id: String,
+    },
+}
+
+/// Arguments for the `comment` subcommand group.
+#[derive(clap::Args, Debug)]
+pub struct CommentArgs {
+    #[command(subcommand)]
+    pub command: CommentCommands,
+}
+
+/// Subcommands under `ccli comment`.
+#[derive(Subcommand, Debug)]
+pub enum CommentCommands {
+    /// Open $EDITOR to write and post a plain-text comment (D-51, D-52, D-53).
+    Add {
+        /// Page ID (numeric string).
+        page_id: String,
+    },
+}
+
+/// Arguments for the `attachment` subcommand group.
+#[derive(clap::Args, Debug)]
+pub struct AttachmentArgs {
+    #[command(subcommand)]
+    pub command: AttachmentCommands,
+}
+
+/// Subcommands under `ccli attachment`.
+#[derive(Subcommand, Debug)]
+pub enum AttachmentCommands {
+    /// List attachments on a page (ATTCH-01, D-56).
+    List {
+        /// Page ID (numeric string).
+        page_id: String,
+    },
+    /// Download an attachment to the current directory (ATTCH-02, D-54).
+    Get {
+        /// Page ID (numeric string).
+        page_id: String,
+        /// Attachment filename as shown by `attachment list`.
+        filename: String,
+        /// Override destination path (D-54). Defaults to `./FILENAME`.
+        #[arg(long)]
+        output: Option<String>,
+    },
+    /// Upload a local file as an attachment (ATTCH-03, D-55).
+    Add {
+        /// Page ID (numeric string).
+        page_id: String,
+        /// Path to the local file.
+        file_path: String,
     },
 }
 

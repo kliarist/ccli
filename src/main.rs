@@ -41,6 +41,8 @@ async fn run() -> anyhow::Result<()> {
         },
         Some(Commands::Page(ref args)) => cli::page::run(&cli, args).await,
         Some(Commands::Blog(ref args)) => cli::blog::run(&cli, args).await,
+        Some(Commands::Comment(ref args)) => cli::comment::run(&cli, args).await,
+        Some(Commands::Attachment(ref args)) => cli::attachment::run(&cli, args).await,
         None => tui::run().await, // D-10: bare ccli launches TUI
     }
 }

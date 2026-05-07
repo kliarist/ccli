@@ -47,6 +47,7 @@ pub async fn run(cli: &Cli, args: &PageArgs) -> anyhow::Result<()> {
         PageCommands::Edit { page_id } => {
             handle_edit_typed(page_id, ContentType::Page).await
         }
+        PageCommands::Search { cql, limit } => handle_search(cli, cql, *limit).await,
     }
 }
 
@@ -284,6 +285,116 @@ fn extract_space_key_from_webui(detail: &PageDetail) -> Option<String> {
         }
     }
     None
+}
+
+// ─── Search (D-45..D-47) ─────────────────────────────────────────────────────
+
+/// Local response shape for `/rest/api/content/search` — only the fields used by the table.
+/// Defined here (not in api/page.rs) because search uses a different endpoint shape than list.
+#[derive(Debug, serde::Deserialize)]
+struct SearchResponse {
+    results: Vec<SearchResult>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct SearchResult {
+    id: String,
+    title: String,
+    #[serde(default)]
+    space: Option<SearchResultSpace>,
+    #[serde(rename = "_links", default)]
+    links: SearchResultLinks,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct SearchResultSpace {
+    key: String,
+}
+
+#[derive(Debug, serde::Deserialize, Default)]
+struct SearchResultLinks {
+    webui: Option<String>,
+}
+
+/// `ccli page search "<CQL>" [--limit N]` — D-45: ALWAYS table, no TUI dispatch.
+/// D-46: 4 columns (Title, ID, Space, URL), default limit 25.
+/// D-47: CQL is a positional argument.
+pub async fn handle_search(cli: &Cli, cql: &str, limit: u32) -> anyhow::Result<()> {
+    let cfg = config::load_or_error()
+        .map_err(anyhow::Error::from)
+        .context("No configuration found. Run 'ccli init' to configure.")?;
+    let client = Client::new(&cfg)?;
+
+    let url = format!(
+        "{}/rest/api/content/search",
+        client.base_url().trim_end_matches('/'),
+    );
+    let limit_str = limit.to_string();
+    // WR-05: .query() builder percent-encodes user-supplied CQL safely.
+    let resp = client
+        .inner()
+        .get(&url)
+        .query(&[
+            ("cql", cql),
+            ("limit", limit_str.as_str()),
+            ("expand", "space"),
+        ])
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_connect() || e.is_timeout() {
+                AppError::Network(format!("Cannot reach server: {}", e))
+            } else {
+                AppError::Network(e.to_string())
+            }
+        })?;
+
+    let status = resp.status().as_u16();
+    let parsed: SearchResponse = match status {
+        200 => resp.json().await.map_err(|e| {
+            AppError::Api(format!("Failed to parse search response: {}", e))
+        })?,
+        400 => {
+            // Confluence returns 400 for invalid CQL — surface its body to the user.
+            let body = resp.text().await.unwrap_or_default();
+            return Err(AppError::Api(format!("invalid CQL — {}", body)).into());
+        }
+        401 | 403 => {
+            return Err(AppError::Auth(
+                "Authentication failed. Run 'ccli init' to reconfigure.".to_string(),
+            )
+            .into());
+        }
+        _ => {
+            return Err(AppError::Api(format!(
+                "Unexpected HTTP {} from /rest/api/content/search",
+                status
+            ))
+            .into());
+        }
+    };
+
+    let base = client.base_url().trim_end_matches('/').to_string();
+    let formatter = OutputFormatter::new(cli.output_config());
+    let headers = &["Title", "ID", "Space", "URL"];
+    let rows: Vec<Vec<String>> = parsed
+        .results
+        .iter()
+        .map(|r| {
+            let space_key = r.space.as_ref().map(|s| s.key.clone()).unwrap_or_default();
+            let webui = r.links.webui.as_deref().unwrap_or("");
+            let url = if webui.is_empty() {
+                String::new()
+            } else if webui.starts_with("http") {
+                webui.to_string()
+            } else {
+                format!("{}{}", base, webui)
+            };
+            vec![r.title.clone(), r.id.clone(), space_key, url]
+        })
+        .collect();
+    formatter.print(headers, &rows);
+    Ok(())
 }
 
 /// Launch `$EDITOR` (or `$VISUAL`, or `vi`) on the given path, blocking until exit.
