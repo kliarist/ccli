@@ -31,13 +31,11 @@ use anyhow::Context;
 use crossterm::event::{self, Event, KeyEventKind};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::api::{
-    get_space_detail, list_all_spaces, resolve_webui_url, AppError, Client, Space,
-};
 use crate::api::comment::{list_comments, Comment};
 use crate::api::page::{
     get_page_detail, list_all_pages, update_page, ContentType, Page, PageDetail,
 };
+use crate::api::{get_space_detail, list_all_spaces, resolve_webui_url, AppError, Client, Space};
 use crate::config;
 use crate::tui::app::{
     App, CommentsBrowseState, KeyAction, PagesBrowseState, Screen, StatusMessage, StatusStyle,
@@ -58,7 +56,9 @@ use crate::tui::screens::spaces::render_spaces;
 pub async fn run() -> anyhow::Result<()> {
     let config = config::load_or_error()
         .map_err(anyhow::Error::from)
-        .context("No configuration found. Run 'ccli init' to configure before launching the TUI.")?;
+        .context(
+            "No configuration found. Run 'ccli init' to configure before launching the TUI.",
+        )?;
 
     let client = Client::new(&config)?;
     let base_url = client.base_url().to_string();
@@ -102,10 +102,8 @@ async fn run_app(
     let mut spaces_rx: Option<oneshot::Receiver<Result<Vec<Space>, AppError>>> = Some(spaces_rx);
 
     // Channel for preview detail fetches — buffer 4 to avoid blocking spawned tasks
-    let (preview_tx, mut preview_rx) = tokio::sync::mpsc::channel::<(
-        String,
-        Result<crate::api::space::SpaceDetail, AppError>,
-    )>(4);
+    let (preview_tx, mut preview_rx) =
+        tokio::sync::mpsc::channel::<(String, Result<crate::api::space::SpaceDetail, AppError>)>(4);
 
     // Phase 3: pages list fetch results — keyed by space_key so multiple drill-downs
     // can be in flight concurrently. Buffer 4 (same as spaces preview).
@@ -157,7 +155,12 @@ async fn run_app(
         while let Ok((space_key, fetch_result)) = pages_list_rx.try_recv() {
             // Find the matching PagesBrowse screen (most recently pushed) and update.
             for screen in app.screen_stack.iter_mut().rev() {
-                if let Screen::PagesBrowse { space_key: sk, state, .. } = screen {
+                if let Screen::PagesBrowse {
+                    space_key: sk,
+                    state,
+                    ..
+                } = screen
+                {
                     if *sk == space_key {
                         match fetch_result {
                             Ok(pages) => state.set_pages(pages),
@@ -179,7 +182,11 @@ async fn run_app(
         // Phase 4: drain comments list fetch results (D-48)
         while let Ok((page_id, fetch_result)) = comments_list_rx.try_recv() {
             for screen in app.screen_stack.iter_mut().rev() {
-                if let Screen::CommentsBrowse { page_id: pid, state } = screen {
+                if let Screen::CommentsBrowse {
+                    page_id: pid,
+                    state,
+                } = screen
+                {
                     if *pid == page_id {
                         match fetch_result {
                             Ok(comments) => state.set_comments(comments),
@@ -230,12 +237,8 @@ async fn run_app(
                     // of screen_stack. PagesBrowse and CommentsBrowse delegate to their
                     // own state structs; empty stack or SpacesBrowse uses the App handler.
                     let action = match app.screen_stack.last_mut() {
-                        Some(Screen::CommentsBrowse { state, .. }) => {
-                            state.handle_key(key.code)
-                        }
-                        Some(Screen::PagesBrowse { state, .. }) => {
-                            state.handle_key(key.code)
-                        }
+                        Some(Screen::CommentsBrowse { state, .. }) => state.handle_key(key.code),
+                        Some(Screen::PagesBrowse { state, .. }) => state.handle_key(key.code),
                         _ => app.handle_key(key.code),
                     };
 
@@ -247,10 +250,7 @@ async fn run_app(
                             //     Resolve and open directly here.
                             //   - Top is SpacesBrowse / empty: payload is a space key.
                             //     Existing handle_open_browser resolves it from app.spaces.
-                            if matches!(
-                                app.screen_stack.last(),
-                                Some(Screen::PagesBrowse { .. })
-                            ) {
+                            if matches!(app.screen_stack.last(), Some(Screen::PagesBrowse { .. })) {
                                 handle_open_page_browser(&payload, &base_url, terminal)?;
                             } else {
                                 handle_open_browser(&mut app, &payload, &base_url, terminal)?;
@@ -271,12 +271,9 @@ async fn run_app(
                             let tx = pages_list_tx.clone();
                             let key_tag = space_key.clone();
                             tokio::spawn(async move {
-                                let result = list_all_pages(
-                                    &fetch_client,
-                                    &key_tag,
-                                    ContentType::Page,
-                                )
-                                .await;
+                                let result =
+                                    list_all_pages(&fetch_client, &key_tag, ContentType::Page)
+                                        .await;
                                 let _ = tx.send((key_tag, result)).await;
                             });
                         }
@@ -288,10 +285,16 @@ async fn run_app(
                             // D-41: suspend TUI, run editor, PUT, restore TUI
                             // CR-02: read content_type from the active screen so blog posts
                             // are updated as "blogpost", not "page".
-                            let ct = app.screen_stack.last()
-                                .and_then(|s| if let Screen::PagesBrowse { content_type, .. } = s {
-                                    Some(*content_type)
-                                } else { None })
+                            let ct = app
+                                .screen_stack
+                                .last()
+                                .and_then(|s| {
+                                    if let Screen::PagesBrowse { content_type, .. } = s {
+                                        Some(*content_type)
+                                    } else {
+                                        None
+                                    }
+                                })
                                 .unwrap_or(ContentType::Page);
                             handle_edit_page(&mut app, &client, &page_id, ct, terminal).await;
                         }
@@ -547,10 +550,7 @@ async fn handle_edit_page(
 
 /// Run the editor (Command::new(editor).arg(path).status()) and read back the file.
 /// Returns the new XML on success. NEVER invokes a shell.
-fn run_editor_workflow(
-    path: &std::path::Path,
-    initial_content: &str,
-) -> anyhow::Result<String> {
+fn run_editor_workflow(path: &std::path::Path, initial_content: &str) -> anyhow::Result<String> {
     use anyhow::Context;
     std::fs::write(path, initial_content)
         .with_context(|| format!("Failed to write temp file {}", path.display()))?;
@@ -641,7 +641,10 @@ mod tests {
         std::env::set_var("EDITOR", "this-binary-does-not-exist-xyzzy-12345");
         let result = run_editor_workflow(&path, "<p>test</p>");
         std::env::remove_var("EDITOR");
-        assert!(result.is_err(), "expected editor launch failure to surface as Err");
+        assert!(
+            result.is_err(),
+            "expected editor launch failure to surface as Err"
+        );
         let _ = std::fs::remove_file(&path);
     }
 }

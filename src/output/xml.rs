@@ -54,32 +54,36 @@ pub fn strip_storage_xml(xml: &str) -> String {
                     _ => {} // unknown tags including ac:*, ri:* — strip, retain text (Pitfall 7)
                 }
             }
-            Ok(Event::End(ref e)) => {
-                match e.name().as_ref() {
-                    b"h1" | b"h2" | b"h3" | b"h4" | b"h5" | b"h6" => {
-                        heading_depth = heading_depth.saturating_sub(1);
-                        output.push('\n');
-                        output.push('\n');
-                    }
-                    b"p" => {
-                        output.push('\n');
-                        output.push('\n');
-                    }
-                    b"li" => {
-                        output.push('\n');
-                    }
-                    b"code" | b"pre" => {
-                        code_depth = code_depth.saturating_sub(1);
-                    }
-                    _ => {}
+            Ok(Event::End(ref e)) => match e.name().as_ref() {
+                b"h1" | b"h2" | b"h3" | b"h4" | b"h5" | b"h6" => {
+                    heading_depth = heading_depth.saturating_sub(1);
+                    output.push('\n');
+                    output.push('\n');
                 }
-            }
+                b"p" => {
+                    output.push('\n');
+                    output.push('\n');
+                }
+                b"li" => {
+                    output.push('\n');
+                }
+                b"code" | b"pre" => {
+                    code_depth = code_depth.saturating_sub(1);
+                }
+                _ => {}
+            },
             Ok(Event::Text(ref e)) => {
                 // In quick-xml 0.39, Text events contain plain text (no entity refs).
                 // Entity refs like &amp; are emitted as separate Event::GeneralRef events.
                 // decode() converts raw bytes → &str (character encoding only).
                 let raw = e.decode().unwrap_or_default();
-                emit_text(&raw, heading_depth, code_depth, &mut li_pending, &mut output);
+                emit_text(
+                    &raw,
+                    heading_depth,
+                    code_depth,
+                    &mut li_pending,
+                    &mut output,
+                );
             }
             Ok(Event::GeneralRef(ref e)) => {
                 // In quick-xml 0.39, entity references (&amp; &lt; &gt; &quot; etc.) are
@@ -87,7 +91,13 @@ pub fn strip_storage_xml(xml: &str) -> String {
                 // We resolve predefined XML entities here (T-03-05: no panic on unknown ref).
                 let ref_name = e.decode().unwrap_or_default();
                 if let Some(resolved) = resolve_predefined_entity(&ref_name) {
-                    emit_text(resolved, heading_depth, code_depth, &mut li_pending, &mut output);
+                    emit_text(
+                        resolved,
+                        heading_depth,
+                        code_depth,
+                        &mut li_pending,
+                        &mut output,
+                    );
                 } else if let Ok(Some(ch)) = e.resolve_char_ref() {
                     // Numeric character references: &#60; or &#x3C;
                     let s = ch.to_string();
@@ -164,7 +174,11 @@ mod tests {
     fn heading_h1_uppercased_with_blank_line() {
         let out = strip_storage_xml("<h1>Hello</h1>");
         assert!(out.contains("HELLO"), "got: {:?}", out);
-        assert!(out.contains("HELLO\n"), "heading needs trailing newline; got: {:?}", out);
+        assert!(
+            out.contains("HELLO\n"),
+            "heading needs trailing newline; got: {:?}",
+            out
+        );
     }
 
     #[test]
@@ -212,7 +226,11 @@ mod tests {
     #[test]
     fn consecutive_blank_lines_collapsed_to_one() {
         let out = strip_storage_xml("<p>a</p><p>b</p><p>c</p>");
-        assert!(!out.contains("\n\n\n"), "must not have three consecutive newlines: {:?}", out);
+        assert!(
+            !out.contains("\n\n\n"),
+            "must not have three consecutive newlines: {:?}",
+            out
+        );
     }
 
     #[test]
@@ -227,10 +245,21 @@ mod tests {
     fn ac_namespace_macro_tag_stripped_inner_text_retained() {
         let xml = r#"<ac:structured-macro ac:name="info"><ac:parameter>x</ac:parameter>visible text</ac:structured-macro>"#;
         let out = strip_storage_xml(xml);
-        assert!(out.contains("x") || out.contains("visible text"),
-                "Pitfall 7: ac:* tags stripped, inner text retained; got: {:?}", out);
-        assert!(!out.contains("ac:"), "namespace prefix must not appear in output: {:?}", out);
-        assert!(!out.contains("structured-macro"), "tag name must not appear: {:?}", out);
+        assert!(
+            out.contains("x") || out.contains("visible text"),
+            "Pitfall 7: ac:* tags stripped, inner text retained; got: {:?}",
+            out
+        );
+        assert!(
+            !out.contains("ac:"),
+            "namespace prefix must not appear in output: {:?}",
+            out
+        );
+        assert!(
+            !out.contains("structured-macro"),
+            "tag name must not appear: {:?}",
+            out
+        );
     }
 
     #[test]

@@ -21,22 +21,34 @@ mod tests {
 
     #[test]
     fn auth_display() {
-        assert_eq!(AppError::Auth("bad token".into()).to_string(), "Authentication failed: bad token");
+        assert_eq!(
+            AppError::Auth("bad token".into()).to_string(),
+            "Authentication failed: bad token"
+        );
     }
 
     #[test]
     fn network_display() {
-        assert_eq!(AppError::Network("timeout".into()).to_string(), "Network error: timeout");
+        assert_eq!(
+            AppError::Network("timeout".into()).to_string(),
+            "Network error: timeout"
+        );
     }
 
     #[test]
     fn config_display() {
-        assert_eq!(AppError::Config("missing".into()).to_string(), "Config error: missing");
+        assert_eq!(
+            AppError::Config("missing".into()).to_string(),
+            "Config error: missing"
+        );
     }
 
     #[test]
     fn api_display() {
-        assert_eq!(AppError::Api("HTTP 500".into()).to_string(), "API error: HTTP 500");
+        assert_eq!(
+            AppError::Api("HTTP 500".into()).to_string(),
+            "API error: HTTP 500"
+        );
     }
 
     #[test]

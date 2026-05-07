@@ -3,14 +3,13 @@
 //! Pure render: no I/O, no state mutation beyond ListState (required by
 //! render_stateful_widget). Mirrors src/tui/screens/pages.rs structure.
 
-use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
-    Block, BorderType, Borders, HighlightSpacing, List, ListItem,
-    Padding, Paragraph, Wrap,
+    Block, BorderType, Borders, HighlightSpacing, List, ListItem, Padding, Paragraph, Wrap,
 };
+use ratatui::Frame;
 
 use crate::api::comment::Comment;
 use crate::output::strip_storage_xml;
@@ -33,7 +32,9 @@ pub fn render_comments(f: &mut Frame, state: &mut CommentsBrowseState, area: Rec
 }
 
 fn render_title(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
-    let block = Block::default().borders(Borders::BOTTOM).border_type(BorderType::Plain);
+    let block = Block::default()
+        .borders(Borders::BOTTOM)
+        .border_type(BorderType::Plain);
     let inner = block.inner(area);
     f.render_widget(block, area);
     // " Comments — {PAGE-ID}                         {N} total"
@@ -54,10 +55,7 @@ fn render_title(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
 }
 
 fn render_body(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) {
-    let horizontal = Layout::horizontal([
-        Constraint::Percentage(40),
-        Constraint::Percentage(60),
-    ]);
+    let horizontal = Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)]);
     let [list_area, preview_area] = horizontal.areas(area);
     render_list_pane(f, state, list_area);
     render_preview_pane(f, state, preview_area);
@@ -85,10 +83,14 @@ fn render_list_pane(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) 
         return;
     }
 
-    let items: Vec<ListItem> = state.comments.iter().map(|c| {
-        let label = format_list_row(c, inner_w.saturating_sub(2));
-        ListItem::new(label)
-    }).collect();
+    let items: Vec<ListItem> = state
+        .comments
+        .iter()
+        .map(|c| {
+            let label = format_list_row(c, inner_w.saturating_sub(2));
+            ListItem::new(label)
+        })
+        .collect();
 
     let list = List::new(items)
         .block(block)
@@ -105,15 +107,21 @@ fn render_list_pane(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) 
 
 /// Build "{author} · {date} · {first_line}" truncated to `max_chars` with "…".
 fn format_list_row(c: &Comment, max_chars: usize) -> String {
-    let author = c.version.as_ref()
+    let author = c
+        .version
+        .as_ref()
         .and_then(|v| v.by.as_ref())
         .and_then(|a| a.display_name.as_deref())
         .unwrap_or("—");
-    let date = c.version.as_ref()
+    let date = c
+        .version
+        .as_ref()
         .and_then(|v| v.when.as_deref())
         .map(|w| w.get(..10).unwrap_or(w))
         .unwrap_or("—");
-    let body = c.body.as_ref()
+    let body = c
+        .body
+        .as_ref()
         .and_then(|b| b.storage.as_ref())
         .and_then(|s| s.value.as_deref())
         .unwrap_or("");
@@ -124,9 +132,13 @@ fn format_list_row(c: &Comment, max_chars: usize) -> String {
 }
 
 fn truncate_with_ellipsis(s: &str, max: usize) -> String {
-    if max == 0 { return String::new(); }
+    if max == 0 {
+        return String::new();
+    }
     let count = s.chars().count();
-    if count <= max { return s.to_string(); }
+    if count <= max {
+        return s.to_string();
+    }
     let take = max.saturating_sub(1);
     let mut out: String = s.chars().take(take).collect();
     out.push('…');
@@ -134,7 +146,9 @@ fn truncate_with_ellipsis(s: &str, max: usize) -> String {
 }
 
 fn render_preview_pane(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
-    let block = Block::default().borders(Borders::NONE).padding(Padding::new(1, 1, 0, 0));
+    let block = Block::default()
+        .borders(Borders::NONE)
+        .padding(Padding::new(1, 1, 0, 0));
     if state.comments.is_empty() {
         let p = Paragraph::new("Select a comment to preview")
             .style(Style::default().fg(Color::DarkGray))
@@ -151,15 +165,23 @@ fn render_preview_pane(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
     };
 
     let bold = Style::default().add_modifier(Modifier::BOLD);
-    let dim_dash = Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM);
+    let dim_dash = Style::default()
+        .fg(Color::DarkGray)
+        .add_modifier(Modifier::DIM);
 
-    let author = c.version.as_ref()
+    let author = c
+        .version
+        .as_ref()
         .and_then(|v| v.by.as_ref())
         .and_then(|a| a.display_name.clone());
-    let date = c.version.as_ref()
+    let date = c
+        .version
+        .as_ref()
         .and_then(|v| v.when.as_deref())
         .map(|w| w.get(..10).unwrap_or(w).to_string());
-    let body_xml = c.body.as_ref()
+    let body_xml = c
+        .body
+        .as_ref()
         .and_then(|b| b.storage.as_ref())
         .and_then(|s| s.value.as_deref())
         .unwrap_or("");
@@ -182,7 +204,9 @@ fn render_preview_pane(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
     for body_line in body_text.lines() {
         lines.push(Line::from(body_line.to_string()));
     }
-    let p = Paragraph::new(lines).wrap(Wrap { trim: false }).block(block);
+    let p = Paragraph::new(lines)
+        .wrap(Wrap { trim: false })
+        .block(block);
     f.render_widget(p, area);
 }
 
@@ -212,8 +236,14 @@ fn render_status_bar(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
 }
 
 fn render_help_bar(f: &mut Frame, area: Rect) {
-    let key = |k: &'static str| Span::styled(
-        k, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    let key = |k: &'static str| {
+        Span::styled(
+            k,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+    };
     let line = Line::from(vec![
         Span::raw(" "),
         key("o"),
@@ -229,11 +259,11 @@ fn render_help_bar(f: &mut Frame, area: Rect) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::backend::TestBackend;
-    use ratatui::Terminal;
     use crate::api::comment::{
         Comment, CommentAuthor, CommentBody, CommentLinks, CommentVersion, StorageBody,
     };
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
 
     fn make_comment(author: &str, when: &str, body: &str) -> Comment {
         Comment {
@@ -242,7 +272,9 @@ mod tests {
             version: Some(CommentVersion {
                 number: 1,
                 when: Some(when.into()),
-                by: Some(CommentAuthor { display_name: Some(author.into()) }),
+                by: Some(CommentAuthor {
+                    display_name: Some(author.into()),
+                }),
             }),
             body: Some(CommentBody {
                 storage: Some(StorageBody {
@@ -272,7 +304,9 @@ mod tests {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
         let mut state = CommentsBrowseState::new("12345".into());
-        terminal.draw(|f| render_comments(f, &mut state, f.area())).expect("draw");
+        terminal
+            .draw(|f| render_comments(f, &mut state, f.area()))
+            .expect("draw");
     }
 
     #[test]
@@ -280,31 +314,43 @@ mod tests {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
         let mut state = CommentsBrowseState::with_comments("12345", vec![]);
-        terminal.draw(|f| render_comments(f, &mut state, f.area())).expect("draw");
+        terminal
+            .draw(|f| render_comments(f, &mut state, f.area()))
+            .expect("draw");
     }
 
     #[test]
     fn render_comments_does_not_panic_with_3_comments() {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
-        let mut state = CommentsBrowseState::with_comments("12345", vec![
-            make_comment("Alice", "2026-05-01T10:00:00Z", "<p>One</p>"),
-            make_comment("Bob",   "2026-04-28T09:00:00Z", "<p>Two</p>"),
-            make_comment("Carol", "2026-04-10T08:00:00Z", "<p>Three</p>"),
-        ]);
-        terminal.draw(|f| render_comments(f, &mut state, f.area())).expect("draw");
+        let mut state = CommentsBrowseState::with_comments(
+            "12345",
+            vec![
+                make_comment("Alice", "2026-05-01T10:00:00Z", "<p>One</p>"),
+                make_comment("Bob", "2026-04-28T09:00:00Z", "<p>Two</p>"),
+                make_comment("Carol", "2026-04-10T08:00:00Z", "<p>Three</p>"),
+            ],
+        );
+        terminal
+            .draw(|f| render_comments(f, &mut state, f.area()))
+            .expect("draw");
     }
 
     #[test]
     fn render_comments_status_bar_shows_count_in_browse() {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
-        let mut state = CommentsBrowseState::with_comments("12345", vec![
-            make_comment("Alice", "2026-05-01T10:00:00Z", "<p>One</p>"),
-            make_comment("Bob",   "2026-04-28T09:00:00Z", "<p>Two</p>"),
-            make_comment("Carol", "2026-04-10T08:00:00Z", "<p>Three</p>"),
-        ]);
-        terminal.draw(|f| render_comments(f, &mut state, f.area())).expect("draw");
+        let mut state = CommentsBrowseState::with_comments(
+            "12345",
+            vec![
+                make_comment("Alice", "2026-05-01T10:00:00Z", "<p>One</p>"),
+                make_comment("Bob", "2026-04-28T09:00:00Z", "<p>Two</p>"),
+                make_comment("Carol", "2026-04-10T08:00:00Z", "<p>Three</p>"),
+            ],
+        );
+        terminal
+            .draw(|f| render_comments(f, &mut state, f.area()))
+            .expect("draw");
         assert!(dump(&terminal).contains("3 comments"));
     }
 
@@ -313,7 +359,9 @@ mod tests {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
         let mut state = CommentsBrowseState::new("12345".into());
-        terminal.draw(|f| render_comments(f, &mut state, f.area())).expect("draw");
+        terminal
+            .draw(|f| render_comments(f, &mut state, f.area()))
+            .expect("draw");
         assert!(dump(&terminal).contains("Loading comments"));
     }
 
@@ -321,13 +369,21 @@ mod tests {
     fn render_comments_help_bar_shows_open_help_back() {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
-        let mut state = CommentsBrowseState::with_comments("12345", vec![
-            make_comment("Alice", "2026-05-01T10:00:00Z", "<p>One</p>"),
-        ]);
-        terminal.draw(|f| render_comments(f, &mut state, f.area())).expect("draw");
+        let mut state = CommentsBrowseState::with_comments(
+            "12345",
+            vec![make_comment("Alice", "2026-05-01T10:00:00Z", "<p>One</p>")],
+        );
+        terminal
+            .draw(|f| render_comments(f, &mut state, f.area()))
+            .expect("draw");
         let d = dump(&terminal);
         for token in &["open", "help", "back"] {
-            assert!(d.contains(token), "help bar missing token {:?} in dump:\n{}", token, d);
+            assert!(
+                d.contains(token),
+                "help bar missing token {:?} in dump:\n{}",
+                token,
+                d
+            );
         }
     }
 
@@ -335,10 +391,17 @@ mod tests {
     fn render_comments_list_pane_uses_middle_dot_separator() {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
-        let mut state = CommentsBrowseState::with_comments("12345", vec![
-            make_comment("Alice", "2026-05-01T10:00:00Z", "<p>This needs updating</p>"),
-        ]);
-        terminal.draw(|f| render_comments(f, &mut state, f.area())).expect("draw");
+        let mut state = CommentsBrowseState::with_comments(
+            "12345",
+            vec![make_comment(
+                "Alice",
+                "2026-05-01T10:00:00Z",
+                "<p>This needs updating</p>",
+            )],
+        );
+        terminal
+            .draw(|f| render_comments(f, &mut state, f.area()))
+            .expect("draw");
         assert!(dump(&terminal).contains("Alice · 2026-05-01"));
     }
 }

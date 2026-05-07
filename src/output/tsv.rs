@@ -13,12 +13,7 @@ use std::io::{self, Write};
 /// `headers` is already filtered/ordered to match `col_indices` by the caller
 /// (see `OutputFormatter::resolve_columns`).
 #[allow(dead_code)]
-pub fn render(
-    headers: &[String],
-    col_indices: &[usize],
-    rows: &[Vec<String>],
-    no_headers: bool,
-) {
+pub fn render(headers: &[String], col_indices: &[usize], rows: &[Vec<String>], no_headers: bool) {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
     // Errors writing to stdout are not actionable in a CLI; ignore the Result.
@@ -30,7 +25,9 @@ pub fn render(
 /// output correctly.  Embedded `\t` becomes the two-character sequence `\t`,
 /// and similarly for `\n` and `\r`.
 fn escape_tsv_cell(s: &str) -> String {
-    s.replace('\t', "\\t").replace('\n', "\\n").replace('\r', "\\r")
+    s.replace('\t', "\\t")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
 }
 
 /// Testable variant of `render` accepting an explicit writer.
@@ -45,7 +42,8 @@ pub(crate) fn render_to<W: Write>(
         writeln!(writer, "{}", headers.join("\t"))?;
     }
     for row in rows {
-        let filtered: Vec<String> = col_indices.iter()
+        let filtered: Vec<String> = col_indices
+            .iter()
             .map(|&i| escape_tsv_cell(row.get(i).map(|s| s.as_str()).unwrap_or("")))
             .collect();
         writeln!(writer, "{}", filtered.join("\t"))?;
@@ -57,7 +55,12 @@ pub(crate) fn render_to<W: Write>(
 mod tests {
     use super::*;
 
-    fn capture(headers: &[&str], col_indices: &[usize], rows: &[Vec<String>], no_headers: bool) -> String {
+    fn capture(
+        headers: &[&str],
+        col_indices: &[usize],
+        rows: &[Vec<String>],
+        no_headers: bool,
+    ) -> String {
         let owned: Vec<String> = headers.iter().map(|s| s.to_string()).collect();
         let mut buf: Vec<u8> = Vec::new();
         render_to(&mut buf, &owned, col_indices, rows, no_headers).expect("write to Vec");
@@ -66,23 +69,13 @@ mod tests {
 
     #[test]
     fn renders_headers_and_rows_tab_separated() {
-        let out = capture(
-            &["a", "b"],
-            &[0, 1],
-            &[vec!["1".into(), "2".into()]],
-            false,
-        );
+        let out = capture(&["a", "b"], &[0, 1], &[vec!["1".into(), "2".into()]], false);
         assert_eq!(out, "a\tb\n1\t2\n");
     }
 
     #[test]
     fn no_headers_suppresses_header_line() {
-        let out = capture(
-            &["a", "b"],
-            &[0, 1],
-            &[vec!["1".into(), "2".into()]],
-            true,
-        );
+        let out = capture(&["a", "b"], &[0, 1], &[vec!["1".into(), "2".into()]], true);
         assert_eq!(out, "1\t2\n");
     }
 

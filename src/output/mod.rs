@@ -61,11 +61,18 @@ impl OutputFormatter {
 
         if self.is_tty && !self.config.plain {
             // OUT-01: aligned table when output is interactive
-            let rendered = table::render_string(&active_headers, &col_indices, rows, self.config.no_headers);
+            let rendered =
+                table::render_string(&active_headers, &col_indices, rows, self.config.no_headers);
             writeln!(writer, "{}", rendered)?;
         } else {
             // OUT-02: TSV when --plain OR stdout is piped (D-06 auto-detect)
-            tsv::render_to(writer, &active_headers, &col_indices, rows, self.config.no_headers)?;
+            tsv::render_to(
+                writer,
+                &active_headers,
+                &col_indices,
+                rows,
+                self.config.no_headers,
+            )?;
         }
         Ok(())
     }
@@ -82,9 +89,7 @@ impl OutputFormatter {
                 (names, indices)
             }
             Some(selected) => {
-                let lower_headers: Vec<String> = headers.iter()
-                    .map(|s| s.to_lowercase())
-                    .collect();
+                let lower_headers: Vec<String> = headers.iter().map(|s| s.to_lowercase()).collect();
                 let mut names = Vec::new();
                 let mut indices = Vec::new();
                 for col in selected {
@@ -122,12 +127,18 @@ mod tests {
 
     #[test]
     fn parse_columns_basic() {
-        assert_eq!(parse_columns("key,name,status"), vec!["key", "name", "status"]);
+        assert_eq!(
+            parse_columns("key,name,status"),
+            vec!["key", "name", "status"]
+        );
     }
 
     #[test]
     fn parse_columns_trims_whitespace() {
-        assert_eq!(parse_columns("key, name , status"), vec!["key", "name", "status"]);
+        assert_eq!(
+            parse_columns("key, name , status"),
+            vec!["key", "name", "status"]
+        );
     }
 
     #[test]
@@ -150,7 +161,11 @@ mod tests {
     #[test]
     fn resolve_columns_none_returns_all() {
         let f = OutputFormatter::with_tty(
-            OutputConfig { plain: false, no_headers: false, columns: None },
+            OutputConfig {
+                plain: false,
+                no_headers: false,
+                columns: None,
+            },
             true,
         );
         let (names, idx) = f.resolve_columns(&["A", "B", "C"]);
@@ -191,7 +206,11 @@ mod tests {
     #[test]
     fn output_config_struct_fields_exist() {
         // Compile-time check: ensure the public struct fields stay stable.
-        let cfg = OutputConfig { plain: true, no_headers: true, columns: Some(vec!["a".into()]) };
+        let cfg = OutputConfig {
+            plain: true,
+            no_headers: true,
+            columns: Some(vec!["a".into()]),
+        };
         assert!(cfg.plain);
         assert!(cfg.no_headers);
         assert_eq!(cfg.columns.as_ref().unwrap().len(), 1);
@@ -202,7 +221,11 @@ mod tests {
     // Uses print_to() with Vec<u8> buffer so tests don't touch stdout.
 
     fn capture_print(is_tty: bool, plain: bool, headers: &[&str], rows: &[Vec<String>]) -> String {
-        let cfg = OutputConfig { plain, no_headers: false, columns: None };
+        let cfg = OutputConfig {
+            plain,
+            no_headers: false,
+            columns: None,
+        };
         let f = OutputFormatter::with_tty(cfg, is_tty);
         let mut buf: Vec<u8> = Vec::new();
         f.print_to(&mut buf, headers, rows).expect("print_to");
@@ -213,31 +236,59 @@ mod tests {
     fn dispatch_tty_no_plain_uses_table_renderer() {
         // is_tty=true, plain=false → table (contains box-drawing chars)
         let out = capture_print(true, false, &["A", "B"], &[vec!["1".into(), "2".into()]]);
-        let has_box = out.contains('┃') || out.contains('━') || out.contains('┏')
-            || out.contains('┗') || out.contains('│') || out.contains('─');
-        assert!(has_box, "TTY+plain=false must use table renderer; got: {}", out);
+        let has_box = out.contains('┃')
+            || out.contains('━')
+            || out.contains('┏')
+            || out.contains('┗')
+            || out.contains('│')
+            || out.contains('─');
+        assert!(
+            has_box,
+            "TTY+plain=false must use table renderer; got: {}",
+            out
+        );
     }
 
     #[test]
     fn dispatch_tty_plain_uses_tsv_renderer() {
         // is_tty=true, plain=true → TSV (--plain forces TSV even on TTY)
         let out = capture_print(true, true, &["A", "B"], &[vec!["1".into(), "2".into()]]);
-        assert!(out.contains("A\tB\n"), "TTY+plain=true must use TSV; got: {}", out);
-        assert!(!out.contains('┃') && !out.contains('━'), "must not have box chars; got: {}", out);
+        assert!(
+            out.contains("A\tB\n"),
+            "TTY+plain=true must use TSV; got: {}",
+            out
+        );
+        assert!(
+            !out.contains('┃') && !out.contains('━'),
+            "must not have box chars; got: {}",
+            out
+        );
     }
 
     #[test]
     fn dispatch_piped_no_plain_uses_tsv_renderer() {
         // is_tty=false, plain=false → TSV (D-06 auto-detect — piped/redirected stdout)
         let out = capture_print(false, false, &["A", "B"], &[vec!["1".into(), "2".into()]]);
-        assert!(out.contains("A\tB\n"), "piped stdout must auto-detect TSV; got: {}", out);
-        assert!(!out.contains('┃') && !out.contains('━'), "must not have box chars; got: {}", out);
+        assert!(
+            out.contains("A\tB\n"),
+            "piped stdout must auto-detect TSV; got: {}",
+            out
+        );
+        assert!(
+            !out.contains('┃') && !out.contains('━'),
+            "must not have box chars; got: {}",
+            out
+        );
     }
 
     #[test]
     fn dispatch_piped_plain_uses_tsv_renderer() {
         // is_tty=false, plain=true → TSV (both conditions force TSV)
         let out = capture_print(false, true, &["A", "B"], &[vec!["1".into(), "2".into()]]);
-        assert!(out.contains("A\tB\n"), "piped+plain must use TSV; got: {}", out);
+        assert!(
+            out.contains("A\tB\n"),
+            "piped+plain must use TSV; got: {}",
+            out
+        );
     }
 }

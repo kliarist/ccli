@@ -1,9 +1,9 @@
+pub mod attachment;
 pub mod client;
+pub mod comment;
 pub mod error;
 pub mod page;
 pub mod space;
-pub mod comment;
-pub mod attachment;
 
 // Convenience re-exports for callers:
 pub use client::{test_connection, Client};

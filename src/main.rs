@@ -14,8 +14,7 @@ async fn main() {
     // RUST_LOG-driven tracing init (D-05). Default to `warn` if RUST_LOG unset.
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("warn"))
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn")),
         )
         .init();
 
@@ -23,7 +22,9 @@ async fn main() {
         // Walk the full anyhow chain so any `.context("...")` wrapper does not
         // defeat AppError category dispatch (D-04). If no AppError is in the
         // chain, fall back to AppError::Api with the top-level message.
-        let app_err = err.chain().find_map(|e| e.downcast_ref::<AppError>())
+        let app_err = err
+            .chain()
+            .find_map(|e| e.downcast_ref::<AppError>())
             .cloned()
             .unwrap_or_else(|| AppError::Api(err.to_string()));
         handle_error(&app_err);
@@ -112,8 +113,7 @@ mod tests {
     fn chain_walk_recovers_inner_app_error_through_context_wrapper() {
         use anyhow::Context;
         let inner = AppError::Auth("bad token".into());
-        let wrapped: anyhow::Error =
-            Err::<(), _>(inner).context("wrapper layer").unwrap_err();
+        let wrapped: anyhow::Error = Err::<(), _>(inner).context("wrapper layer").unwrap_err();
 
         let recovered: Option<AppError> = wrapped
             .chain()
@@ -122,7 +122,10 @@ mod tests {
 
         match recovered {
             Some(AppError::Auth(msg)) => assert_eq!(msg, "bad token"),
-            other => panic!("expected AppError::Auth recovered through chain, got {:?}", other),
+            other => panic!(
+                "expected AppError::Auth recovered through chain, got {:?}",
+                other
+            ),
         }
     }
 
@@ -135,6 +138,9 @@ mod tests {
             .chain()
             .find_map(|e| e.downcast_ref::<AppError>())
             .cloned();
-        assert!(recovered.is_none(), "plain anyhow error should not yield an AppError");
+        assert!(
+            recovered.is_none(),
+            "plain anyhow error should not yield an AppError"
+        );
     }
 }

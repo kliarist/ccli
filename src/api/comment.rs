@@ -81,10 +81,7 @@ pub async fn list_comments(client: &Client, page_id: &str) -> Result<Vec<Comment
     let resp = client
         .inner()
         .get(&url)
-        .query(&[
-            ("expand", "body.storage,version"),
-            ("limit", "50"),
-        ])
+        .query(&[("expand", "body.storage,version"), ("limit", "50")])
         .send()
         .await
         .map_err(|e| {
@@ -97,9 +94,10 @@ pub async fn list_comments(client: &Client, page_id: &str) -> Result<Vec<Comment
 
     match resp.status().as_u16() {
         200 => {
-            let parsed: CommentListResponse = resp.json().await.map_err(|e| {
-                AppError::Api(format!("Failed to parse comment list: {}", e))
-            })?;
+            let parsed: CommentListResponse = resp
+                .json()
+                .await
+                .map_err(|e| AppError::Api(format!("Failed to parse comment list: {}", e)))?;
             Ok(parsed.results)
         }
         401 | 403 => Err(AppError::Auth(
@@ -116,11 +114,7 @@ pub async fn list_comments(client: &Client, page_id: &str) -> Result<Vec<Comment
 /// `xml_body` MUST be storage-XML (e.g. `<p>...</p>`); the caller wraps plain text per D-52.
 #[allow(dead_code)]
 #[instrument(skip(client))]
-pub async fn add_comment(
-    client: &Client,
-    page_id: &str,
-    xml_body: &str,
-) -> Result<(), AppError> {
+pub async fn add_comment(client: &Client, page_id: &str, xml_body: &str) -> Result<(), AppError> {
     let url = format!(
         "{}/rest/api/content/{}/child/comment",
         client.base_url().trim_end_matches('/'),
@@ -179,8 +173,7 @@ mod tests {
     async fn list_comments_returns_vec_on_200() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/rest/api/content/123/child/comment");
+            when.method(GET).path("/rest/api/content/123/child/comment");
             then.status(200).json_body(serde_json::json!({
                 "results": [{
                     "id": "1",
@@ -214,8 +207,7 @@ mod tests {
     async fn list_comments_returns_auth_error_on_401() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(GET)
-                .path("/rest/api/content/123/child/comment");
+            when.method(GET).path("/rest/api/content/123/child/comment");
             then.status(401);
         });
         let client = test_client(&server.base_url());

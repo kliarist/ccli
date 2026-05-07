@@ -2,9 +2,9 @@ pub mod path;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 
 use crate::api::error::AppError;
 use path::config_path;
@@ -109,9 +109,9 @@ pub fn load_or_error() -> Result<Config, AppError> {
 pub(crate) fn load_or_error_from(path: &Path) -> Result<Config, AppError> {
     load_from(path)
         .map_err(|e| AppError::Config(e.to_string()))?
-        .ok_or_else(|| AppError::Config(
-            "No configuration found. Run 'ccli init' to configure.".to_string()
-        ))
+        .ok_or_else(|| {
+            AppError::Config("No configuration found. Run 'ccli init' to configure.".to_string())
+        })
 }
 
 #[cfg(test)]
@@ -144,7 +144,10 @@ mod tests {
             let prior_token = std::env::var("CCLI_TOKEN").ok();
             std::env::remove_var("CCLI_URL");
             std::env::remove_var("CCLI_TOKEN");
-            Self { prior_url, prior_token }
+            Self {
+                prior_url,
+                prior_token,
+            }
         }
     }
 
@@ -187,7 +190,10 @@ mod tests {
         save_to(&path, &fixture_config()).expect("save");
         assert!(path.exists(), "config.toml should exist after save");
         let tmp = path.with_extension("toml.tmp");
-        assert!(!tmp.exists(), "tmp file should NOT exist after save (rename consumed it)");
+        assert!(
+            !tmp.exists(),
+            "tmp file should NOT exist after save (rename consumed it)"
+        );
     }
 
     #[test]
@@ -253,7 +259,11 @@ mod tests {
         let result = load_or_error_from(&path);
         match result {
             Err(AppError::Config(msg)) => {
-                assert!(msg.contains("ccli init"), "msg should mention ccli init: {}", msg);
+                assert!(
+                    msg.contains("ccli init"),
+                    "msg should mention ccli init: {}",
+                    msg
+                );
             }
             other => panic!("expected AppError::Config, got {:?}", other),
         }
@@ -271,7 +281,9 @@ mod tests {
         std::env::set_var("CCLI_URL", "https://env-only.example.com");
         std::env::set_var("CCLI_TOKEN", "AT-env-only-token");
 
-        let result = load_from(&path).expect("load").expect("Some(env-only synthesized)");
+        let result = load_from(&path)
+            .expect("load")
+            .expect("Some(env-only synthesized)");
         assert_eq!(result.url, "https://env-only.example.com");
         assert_eq!(result.token, "AT-env-only-token");
     }
@@ -287,7 +299,10 @@ mod tests {
         std::env::set_var("CCLI_URL", "https://partial.example.com");
 
         let result = load_from(&path).expect("load");
-        assert!(result.is_none(), "partial env-only should not synthesize a config");
+        assert!(
+            result.is_none(),
+            "partial env-only should not synthesize a config"
+        );
     }
 
     #[test]
@@ -302,6 +317,9 @@ mod tests {
         std::env::set_var("CCLI_TOKEN", "AT-non-empty");
 
         let result = load_from(&path).expect("load");
-        assert!(result.is_none(), "empty CCLI_URL should not satisfy env-only mode");
+        assert!(
+            result.is_none(),
+            "empty CCLI_URL should not satisfy env-only mode"
+        );
     }
 }

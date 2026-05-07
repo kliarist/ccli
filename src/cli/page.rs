@@ -36,17 +36,20 @@ pub async fn run(cli: &Cli, args: &PageArgs) -> anyhow::Result<()> {
             handle_list_typed(cli, space_key, ContentType::Page).await
         }
         PageCommands::View { page_id } => handle_view_typed(page_id).await,
-        PageCommands::Create { space, title, parent } => {
+        PageCommands::Create {
+            space,
+            title,
+            parent,
+        } => {
             handle_create_typed(
                 space.as_deref(),
                 title.as_deref(),
                 parent.as_deref(),
                 ContentType::Page,
-            ).await
+            )
+            .await
         }
-        PageCommands::Edit { page_id } => {
-            handle_edit_typed(page_id, ContentType::Page).await
-        }
+        PageCommands::Edit { page_id } => handle_edit_typed(page_id, ContentType::Page).await,
         PageCommands::Search { cql, limit } => handle_search(cli, cql, *limit).await,
     }
 }
@@ -96,8 +99,12 @@ pub async fn handle_list_typed(
 
 /// `ccli page view <ID>` / `ccli blog view <ID>` — D-36: strip XML, print plain text.
 pub async fn handle_view_typed(content_id: &str) -> anyhow::Result<()> {
-    let id = sanitize_id(content_id)
-        .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", content_id)))?;
+    let id = sanitize_id(content_id).ok_or_else(|| {
+        AppError::Api(format!(
+            "Invalid id: must be numeric (got {:?})",
+            content_id
+        ))
+    })?;
     let cfg = config::load_or_error()
         .map_err(anyhow::Error::from)
         .context("No configuration found. Run 'ccli init' to configure.")?;
@@ -178,8 +185,12 @@ pub async fn handle_create_typed(
 /// On HTTP 409: stderr prints conflict message and the temp file path; temp file
 /// is NOT deleted so the user can re-open and merge manually.
 pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> anyhow::Result<()> {
-    let id = sanitize_id(content_id)
-        .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", content_id)))?;
+    let id = sanitize_id(content_id).ok_or_else(|| {
+        AppError::Api(format!(
+            "Invalid id: must be numeric (got {:?})",
+            content_id
+        ))
+    })?;
     let cfg = config::load_or_error()
         .map_err(anyhow::Error::from)
         .context("No configuration found. Run 'ccli init' to configure.")?;
@@ -189,10 +200,9 @@ pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> a
         .await
         .map_err(anyhow::Error::from)
         .context("Failed to fetch page detail before edit")?;
-    let current_version = detail.version.as_ref().map(|v| v.number)
-        .ok_or_else(|| anyhow::anyhow!(
-            "Page version was not returned by the API — cannot safely update."
-        ))?;
+    let current_version = detail.version.as_ref().map(|v| v.number).ok_or_else(|| {
+        anyhow::anyhow!("Page version was not returned by the API — cannot safely update.")
+    })?;
     let title = detail.title.clone();
     // space.key is not part of PageDetail directly in our struct, but it IS required by update_page.
     // We extract it from the API at call time. For now, look it up from the ancestors chain or
@@ -351,9 +361,10 @@ pub async fn handle_search(cli: &Cli, cql: &str, limit: u32) -> anyhow::Result<(
 
     let status = resp.status().as_u16();
     let parsed: SearchResponse = match status {
-        200 => resp.json().await.map_err(|e| {
-            AppError::Api(format!("Failed to parse search response: {}", e))
-        })?,
+        200 => resp
+            .json()
+            .await
+            .map_err(|e| AppError::Api(format!("Failed to parse search response: {}", e)))?,
         400 => {
             // Confluence returns 400 for invalid CQL — surface its body to the user.
             let body = resp.text().await.unwrap_or_default();
@@ -420,8 +431,8 @@ mod tests {
 
     // ── Search tests ─────────────────────────────────────────────────────────────
 
-    use crate::config::Config;
     use crate::api::Client;
+    use crate::config::Config;
     use httpmock::prelude::*;
 
     fn test_client(base_url: &str) -> Client {
@@ -458,14 +469,12 @@ mod tests {
 
         let status = resp.status().as_u16();
         let parsed: SearchResponse = match status {
-            200 => resp.json().await.map_err(|e| {
-                AppError::Api(format!("Failed to parse search response: {}", e))
-            })?,
+            200 => resp
+                .json()
+                .await
+                .map_err(|e| AppError::Api(format!("Failed to parse search response: {}", e)))?,
             401 | 403 => {
-                return Err(AppError::Auth(
-                    "Authentication failed.".to_string(),
-                )
-                .into());
+                return Err(AppError::Auth("Authentication failed.".to_string()).into());
             }
             _ => {
                 return Err(AppError::Api(format!(
@@ -494,7 +503,10 @@ mod tests {
             })
             .collect();
 
-        Ok((vec!["Title".into(), "ID".into(), "Space".into(), "URL".into()], rows))
+        Ok((
+            vec!["Title".into(), "ID".into(), "Space".into(), "URL".into()],
+            rows,
+        ))
     }
 
     #[tokio::test]
@@ -538,7 +550,8 @@ mod tests {
             when.method(GET)
                 .path("/rest/api/content/search")
                 .query_param("limit", "25");
-            then.status(200).json_body(serde_json::json!({ "results": [] }));
+            then.status(200)
+                .json_body(serde_json::json!({ "results": [] }));
         });
         let client = test_client(&server.base_url());
         run_search(&client, "type=page", 25).await.expect("ok");
@@ -552,7 +565,8 @@ mod tests {
             when.method(GET)
                 .path("/rest/api/content/search")
                 .query_param("limit", "5");
-            then.status(200).json_body(serde_json::json!({ "results": [] }));
+            then.status(200)
+                .json_body(serde_json::json!({ "results": [] }));
         });
         let client = test_client(&server.base_url());
         run_search(&client, "type=page", 5).await.expect("ok");
@@ -576,9 +590,7 @@ mod tests {
         });
         let base_url = server.base_url();
         let client = test_client(&base_url);
-        let (_headers, rows) = run_search(&client, "type=page", 25)
-            .await
-            .expect("ok");
+        let (_headers, rows) = run_search(&client, "type=page", 25).await.expect("ok");
 
         assert_eq!(rows.len(), 1);
         let url_col = &rows[0][3];
@@ -605,12 +617,16 @@ mod tests {
         let result = run_search(&client, "type=page", 25).await;
         assert!(result.is_err());
         let err_chain = result.unwrap_err();
-        let has_auth_err = err_chain
-            .chain()
-            .any(|e| e.downcast_ref::<AppError>()
+        let has_auth_err = err_chain.chain().any(|e| {
+            e.downcast_ref::<AppError>()
                 .map(|ae| matches!(ae, AppError::Auth(_)))
-                .unwrap_or(false));
-        assert!(has_auth_err, "expected AppError::Auth in chain; got: {}", err_chain);
+                .unwrap_or(false)
+        });
+        assert!(
+            has_auth_err,
+            "expected AppError::Auth in chain; got: {}",
+            err_chain
+        );
     }
 
     fn detail_with_body(body: Option<&str>) -> PageDetail {

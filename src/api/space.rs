@@ -114,18 +114,13 @@ pub async fn list_all_spaces(client: &Client) -> Result<Vec<Space>, AppError> {
         );
         debug!("Fetching spaces page: GET {}", url);
 
-        let resp = client
-            .inner()
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_connect() || e.is_timeout() {
-                    AppError::Network(format!("Cannot reach server: {}", e))
-                } else {
-                    AppError::Network(e.to_string())
-                }
-            })?;
+        let resp = client.inner().get(&url).send().await.map_err(|e| {
+            if e.is_connect() || e.is_timeout() {
+                AppError::Network(format!("Cannot reach server: {}", e))
+            } else {
+                AppError::Network(e.to_string())
+            }
+        })?;
 
         match resp.status().as_u16() {
             200 => {
@@ -173,18 +168,13 @@ pub async fn get_space_detail(client: &Client, key: &str) -> Result<SpaceDetail,
     );
     debug!("Fetching space detail: GET {}", url);
 
-    let resp = client
-        .inner()
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                AppError::Network(format!("Cannot reach server: {}", e))
-            } else {
-                AppError::Network(e.to_string())
-            }
-        })?;
+    let resp = client.inner().get(&url).send().await.map_err(|e| {
+        if e.is_connect() || e.is_timeout() {
+            AppError::Network(format!("Cannot reach server: {}", e))
+        } else {
+            AppError::Network(e.to_string())
+        }
+    })?;
 
     match resp.status().as_u16() {
         200 => resp

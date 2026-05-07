@@ -1,3 +1,3 @@
-pub mod spaces;
-pub mod pages;
 pub mod comments;
+pub mod pages;
+pub mod spaces;
