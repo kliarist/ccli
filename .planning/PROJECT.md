@@ -39,7 +39,7 @@ A developer can find, read, and edit any Confluence page from the terminal as fl
 - [x] User can create a new page by opening `$EDITOR` with a template — Validated in Phase 03: pages-blog-posts
 - [x] User can edit an existing page's storage XML in `$EDITOR` — Validated in Phase 03: pages-blog-posts
 - [x] User can open a page in the browser from the TUI — Validated in Phase 03: pages-blog-posts
-- [ ] User can search pages using CQL (Confluence Query Language) — Phase 04
+- [x] User can search pages using CQL (Confluence Query Language) — Validated in Phase 04: comments-attachments-search
 
 **Blog Posts**
 - [x] User can list blog posts via `ccli blog list` — Validated in Phase 03: pages-blog-posts
@@ -48,16 +48,16 @@ A developer can find, read, and edit any Confluence page from the terminal as fl
 - [x] User can open a blog post in the browser (`ccli blog view --open`) — Validated in Phase 03: pages-blog-posts
 
 **Comments**
-- [ ] User can list comments on a page in the TUI
-- [ ] User can add a new comment to a page from the terminal
+- [x] User can list comments on a page in the TUI — Validated in Phase 04: comments-attachments-search
+- [x] User can add a new comment to a page from the terminal — Validated in Phase 04: comments-attachments-search
 
 **Attachments**
-- [ ] User can list attachments on a page
-- [ ] User can download an attachment to a local path
-- [ ] User can upload a file as an attachment to a page
+- [x] User can list attachments on a page — Validated in Phase 04: comments-attachments-search
+- [x] User can download an attachment to a local path — Validated in Phase 04: comments-attachments-search
+- [x] User can upload a file as an attachment to a page — Validated in Phase 04: comments-attachments-search
 
 **Output & UX**
-- [ ] TUI supports keyboard navigation: arrow keys, `/` to filter, `o` to open in browser, `q` to quit
+- [x] TUI supports keyboard navigation: arrow keys, `/` to filter, `o` to open in browser, `q` to quit — Validated in Phase 02–04
 *(Core output flags validated in Phase 01 — see Validated above)*
 
 ### Out of Scope
@@ -115,9 +115,9 @@ This document evolves at phase transitions and milestone boundaries.
 ---
 ## Current State
 
-Phase 03 (pages-blog-posts) complete — full pages/blog-posts API client, XML storage stripper, TUI browse screen with live preview, CLI `ccli page` and `ccli blog` subcommands, and TUI event loop wiring (drill-down, editor workflow, browser-open) all implemented and verified. 189 tests passing.
+Phase 04 (comments-attachments-search) complete — all 4 phases of the v1.0 milestone are done. The full feature set is implemented: comments API (list/add), attachments API (list/get/add with multipart), CQL page search, TUI CommentsBrowse screen with async fetch, and CLI handlers for all new commands. 235 tests passing. 14 code review findings logged (3 critical, 7 warnings) — see `04-REVIEW.md` for details.
 
-Next: Phase 04 — Comments, Attachments & Search (CQL search, page comments, attachment upload/download).
+All requirements validated: CMNT-01, CMNT-02, ATTCH-01, ATTCH-02, ATTCH-03, PAGE-02. v1.0 milestone complete.
 
 ---
-*Last updated: 2026-05-07 — Phase 03: pages-blog-posts complete*
+*Last updated: 2026-05-08 — Phase 04: comments-attachments-search complete (v1.0 milestone done)*
