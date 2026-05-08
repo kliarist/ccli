@@ -73,7 +73,7 @@
 - [x] **COMPAT-03**: All blog-post endpoints (list, create, edit) work correctly on Confluence 9.2.13
 - [x] **COMPAT-04**: Comments endpoints (list, add) work correctly on Confluence 9.2.13
 - [x] **COMPAT-05**: Attachments endpoints (list, download, upload/multipart) work correctly on Confluence 9.2.13
-- [ ] **COMPAT-06**: CQL search endpoint (`/rest/api/content/search`) returns correct results on Confluence 9.2.13
+- [x] **COMPAT-06**: CQL search endpoint (`/rest/api/content/search`) returns correct results on Confluence 9.2.13
 
 ### Test Matrix
 
@@ -162,7 +162,7 @@
 | COMPAT-03 | Phase 5 | Complete |
 | COMPAT-04 | Phase 5 | Complete |
 | COMPAT-05 | Phase 5 | Complete |
-| COMPAT-06 | Phase 5 | Pending |
+| COMPAT-06 | Phase 5 | Complete |
 | TMAT-01 | Phase 5 | Pending |
 
 **Coverage (v1):**
