@@ -4,6 +4,8 @@
 
 ccli is built in four coarse phases. Phase 1 lays the Rust project skeleton, API client, authentication, and output formatting so every later phase has a reliable foundation. Phase 2 constructs the Ratatui TUI shell with all keyboard navigation primitives and immediately validates it with the Spaces feature. Phase 3 delivers the core value proposition — browsing, viewing, creating, and editing Pages and Blog Posts. Phase 4 completes the v1 surface by adding Comments, Attachments, and CQL search.
 
+Milestone v1.1 (confluence-9213-compat) adds Phase 5: a systematic compatibility audit of every REST endpoint against Confluence 9.2.13, with a documented test matrix and any fixes required.
+
 ## Phases
 
 **Phase Numbering:**
@@ -12,10 +14,16 @@ ccli is built in four coarse phases. Phase 1 lays the Rust project skeleton, API
 
 Decimal phases appear between their surrounding integers in numeric order.
 
+### v1.0 Phases
+
 - [ ] **Phase 1: Foundation** - Rust project skeleton, Confluence API client, PAT auth, `ccli init`, and output formatting flags
 - [x] **Phase 2: TUI Shell & Spaces** - Ratatui TUI with full keyboard navigation, delivered through the Spaces feature end-to-end (completed 2026-04-28)
 - [x] **Phase 3: Pages & Blog Posts** - List, view, create, and edit Pages and Blog Posts — the core content workflow (gap closure 2026-05-07: 4/6 plans complete; 03-05 + 03-06 added by /gsd-plan-phase --gaps) (completed 2026-05-07)
 - [x] **Phase 4: Comments, Attachments & Search** - Page-level comments and attachments, plus CQL search across spaces (completed 2026-05-07)
+
+### v1.1 Phases (Milestone: confluence-9213-compat)
+
+- [ ] **Phase 5: 9.2.13 Compatibility Audit & Fixes** - Systematically verify all REST endpoint areas against Confluence 9.2.13, document findings in COMPAT-9213.md, and apply any fixes required
 
 ## Phase Details
 
@@ -85,14 +93,25 @@ Plans:
 - [x] 04-04-PLAN.md — CLI handlers: ccli comment add ($EDITOR + plain-text wrap), ccli attachment list/get/add
 - [x] 04-05-PLAN.md — TUI render: screens/comments.rs, event-loop wiring, pages help bar update + checkpoint
 
+### Phase 5: 9.2.13 Compatibility Audit & Fixes
+**Goal**: Every REST endpoint area used by ccli is verified to work correctly against Confluence 9.2.13, with all findings and resolutions documented in COMPAT-9213.md
+**Depends on**: Phase 4
+**Requirements**: COMPAT-01, COMPAT-02, COMPAT-03, COMPAT-04, COMPAT-05, COMPAT-06, TMAT-01
+**Success Criteria** (what must be TRUE):
+  1. Running ccli against a Confluence 9.2.13 instance returns correct data for all six endpoint areas: spaces, pages, blog posts, comments, attachments, and CQL search
+  2. Any response shape or behavior differences between 9.2.13 and the 9.2.19 development target are identified and fixed in the Rust code
+  3. COMPAT-9213.md exists and records the request/response expectations, actual behavior observed, and pass/fail/fixed status for every endpoint area tested
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 0/? | Not started | - |
-| 2. TUI Shell & Spaces | 5/5 | Complete   | 2026-04-28 |
-| 3. Pages & Blog Posts | 6/6 | Complete   | 2026-05-07 |
-| 4. Comments, Attachments & Search | 5/5 | Complete   | 2026-05-07 |
+| 2. TUI Shell & Spaces | 5/5 | Complete | 2026-04-28 |
+| 3. Pages & Blog Posts | 6/6 | Complete | 2026-05-07 |
+| 4. Comments, Attachments & Search | 5/5 | Complete | 2026-05-07 |
+| 5. 9.2.13 Compatibility Audit & Fixes | 0/? | Not started | - |
