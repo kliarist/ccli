@@ -112,12 +112,19 @@ This document evolves at phase transitions and milestone boundaries.
 3. Audit Out of Scope — reasons still valid?
 4. Update Context with current state
 
+## Current Milestone: v1.1 confluence-9213-compat
+
+**Goal:** Audit and fix all REST API calls to work correctly against Confluence 9.2.13 (edition unconfirmed — standard Confluence instance).
+
+**Target features:**
+- API compatibility audit across all endpoints (spaces, pages, blog posts, comments, attachments, CQL search)
+- Identify and fix any 9.2.13-specific response shape or behavior differences vs. the current 9.2.19 target
+- Documented test matrix or integration tests verifying each endpoint against 9.2.13
+
 ---
 ## Current State
 
-Phase 04 (comments-attachments-search) complete — all 4 phases of the v1.0 milestone are done. The full feature set is implemented: comments API (list/add), attachments API (list/get/add with multipart), CQL page search, TUI CommentsBrowse screen with async fetch, and CLI handlers for all new commands. 235 tests passing. 14 code review findings logged (3 critical, 7 warnings) — see `04-REVIEW.md` for details.
-
-All requirements validated: CMNT-01, CMNT-02, ATTCH-01, ATTCH-02, ATTCH-03, PAGE-02. v1.0 milestone complete.
+v1.0 milestone complete (4 phases, 21 plans, 235 tests passing). Starting v1.1 — compatibility audit against Confluence 9.2.13.
 
 ---
-*Last updated: 2026-05-08 — Phase 04: comments-attachments-search complete (v1.0 milestone done)*
+*Last updated: 2026-05-08 — Milestone v1.1 started: confluence-9213-compat*
