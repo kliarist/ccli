@@ -68,7 +68,7 @@
 
 ### API Compatibility
 
-- [ ] **COMPAT-01**: All spaces endpoints (`/rest/api/space`) return correct response shapes on Confluence 9.2.13
+- [x] **COMPAT-01**: All spaces endpoints (`/rest/api/space`) return correct response shapes on Confluence 9.2.13
 - [ ] **COMPAT-02**: All pages endpoints (`/rest/api/content` — list, view, create, update) work correctly on Confluence 9.2.13
 - [ ] **COMPAT-03**: All blog-post endpoints (list, create, edit) work correctly on Confluence 9.2.13
 - [ ] **COMPAT-04**: Comments endpoints (list, add) work correctly on Confluence 9.2.13
@@ -157,7 +157,7 @@
 | ATTCH-01 | Phase 4 | Complete |
 | ATTCH-02 | Phase 4 | Complete |
 | ATTCH-03 | Phase 4 | Complete |
-| COMPAT-01 | Phase 5 | Pending |
+| COMPAT-01 | Phase 5 | Complete |
 | COMPAT-02 | Phase 5 | Pending |
 | COMPAT-03 | Phase 5 | Pending |
 | COMPAT-04 | Phase 5 | Pending |
