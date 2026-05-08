@@ -64,6 +64,21 @@
 - [ ] **OUT-03**: `--no-headers` flag suppresses column header row
 - [ ] **OUT-04**: `--columns` flag allows specifying which columns to include in output
 
+## v1.1 Requirements (Milestone: confluence-9213-compat)
+
+### API Compatibility
+
+- [ ] **COMPAT-01**: All spaces endpoints (`/rest/api/space`) return correct response shapes on Confluence 9.2.13
+- [ ] **COMPAT-02**: All pages endpoints (`/rest/api/content` — list, view, create, update) work correctly on Confluence 9.2.13
+- [ ] **COMPAT-03**: All blog-post endpoints (list, create, edit) work correctly on Confluence 9.2.13
+- [ ] **COMPAT-04**: Comments endpoints (list, add) work correctly on Confluence 9.2.13
+- [ ] **COMPAT-05**: Attachments endpoints (list, download, upload/multipart) work correctly on Confluence 9.2.13
+- [ ] **COMPAT-06**: CQL search endpoint (`/rest/api/content/search`) returns correct results on Confluence 9.2.13
+
+### Test Matrix
+
+- [ ] **TMAT-01**: A `COMPAT-9213.md` test matrix documents request/response expectations and actual behavior for all 6 endpoint areas on Confluence 9.2.13, with pass/fail/needs-fix status per endpoint
+
 ## v2 Requirements
 
 ### Search & Query
@@ -143,11 +158,16 @@
 | ATTCH-02 | Phase 4 | Complete |
 | ATTCH-03 | Phase 4 | Complete |
 
-**Coverage:**
+**Coverage (v1):**
 - v1 requirements: 35 total
 - Mapped to phases: 35
 - Unmapped: 0 ✓
 
+**Coverage (v1.1):**
+- v1.1 requirements: 7 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 7
+
 ---
 *Requirements defined: 2026-04-24*
-*Last updated: 2026-04-24 after roadmap creation*
+*Last updated: 2026-05-08 — v1.1 requirements added (confluence-9213-compat)*
