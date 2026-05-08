@@ -157,6 +157,13 @@
 | ATTCH-01 | Phase 4 | Complete |
 | ATTCH-02 | Phase 4 | Complete |
 | ATTCH-03 | Phase 4 | Complete |
+| COMPAT-01 | Phase 5 | Pending |
+| COMPAT-02 | Phase 5 | Pending |
+| COMPAT-03 | Phase 5 | Pending |
+| COMPAT-04 | Phase 5 | Pending |
+| COMPAT-05 | Phase 5 | Pending |
+| COMPAT-06 | Phase 5 | Pending |
+| TMAT-01 | Phase 5 | Pending |
 
 **Coverage (v1):**
 - v1 requirements: 35 total
@@ -165,9 +172,9 @@
 
 **Coverage (v1.1):**
 - v1.1 requirements: 7 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 7
+- Mapped to phases: 7
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-24*
-*Last updated: 2026-05-08 — v1.1 requirements added (confluence-9213-compat)*
+*Last updated: 2026-05-08 — v1.1 traceability complete (Phase 5 mapped)*
