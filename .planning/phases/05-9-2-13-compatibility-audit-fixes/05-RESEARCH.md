@@ -451,22 +451,25 @@ then.status(200).json_body(serde_json::json!({
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **What does the 9.2.13 `description.plain` response actually look like for a space with no description set?**
    - What we know: The struct has `description: Option<SpaceDescription>` and `plain: Option<PlainBody>` — nested Options handle null/absent
    - What's unclear: Whether the key is present as `{}`, `null`, or absent entirely — all produce `None` with current struct, so no breakage expected
    - Recommendation: Verify during COMPAT-01 test; document in COMPAT-9213.md notes column
+   - RESOLVED: Existing `Option<SpaceDescription>` / `Option<PlainBody>` nesting handles all three cases (`{}`, `null`, absent) — no code change needed pre-emptively; confirm during COMPAT-01 live test.
 
 2. **Does the 9.2.13 search endpoint return `space` as an empty object `{}` or omit the key when `expand=space` is requested but the item has no space?**
    - What we know: `SearchResultSpace { key: String }` — the field is non-Optional, so if the object is present but empty, parse fails
    - What's unclear: Whether this edge case exists in 9.2.13
    - Recommendation: Add `Option<SearchResultSpace>` defensively; the current code already has `#[serde(default)]` on the space field
+   - RESOLVED: Plan 05-06 (COMPAT-06 CQL Search) applies `Option<SearchResultSpace>` defensively as part of its fix scope; this addresses the potential parse failure regardless of whether the edge case is observed on 9.2.13.
 
 3. **Can the live 9.2.13 instance be reached from the developer's machine at test time?**
    - What we know: D-57 specifies user provides URL/token externally; instance is not spun up by the plan
    - What's unclear: TLS certificate validity — the `CCLI_INSECURE=1` env var exists for self-signed certs
    - Recommendation: Document `CCLI_INSECURE=1` usage in the plan's test execution steps
+   - RESOLVED: All 6 audit plans (05-01 through 05-06) document `CCLI_INSECURE=1` usage in their test execution steps; the environment table below confirms the env var is already implemented in client.rs.
 
 ---
 

@@ -101,7 +101,28 @@ Plans:
   1. Running ccli against a Confluence 9.2.13 instance returns correct data for all six endpoint areas: spaces, pages, blog posts, comments, attachments, and CQL search
   2. Any response shape or behavior differences between 9.2.13 and the 9.2.19 development target are identified and fixed in the Rust code
   3. COMPAT-9213.md exists and records the request/response expectations, actual behavior observed, and pass/fail/fixed status for every endpoint area tested
-**Plans**: TBD
+**Plans**: 7 plans
+Plans:
+**Wave 1**
+- [ ] 05-01-PLAN.md — COMPAT-01: Audit Spaces endpoints against 9.2.13, fix in src/api/space.rs if broken
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 05-02-PLAN.md — COMPAT-02: Audit Pages CRUD endpoints against 9.2.13, fix in src/api/page.rs if broken
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 05-03-PLAN.md — COMPAT-03: Audit Blog Posts (type=blogpost) endpoints against 9.2.13, fix in src/api/page.rs if broken
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 05-04-PLAN.md — COMPAT-04: Audit Comments endpoints against 9.2.13, fix in src/api/comment.rs if broken
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 05-05-PLAN.md — COMPAT-05: Audit Attachments (list/download/multipart upload) against 9.2.13, fix in src/api/attachment.rs if broken
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 05-06-PLAN.md — COMPAT-06: Audit CQL Search endpoint against 9.2.13, fix in src/cli/page.rs if broken
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 05-07-PLAN.md — TMAT-01: Synthesize 6-row COMPAT-9213.md test matrix at repo root from per-area findings
 
 ## Progress
 
@@ -114,4 +135,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. TUI Shell & Spaces | 5/5 | Complete | 2026-04-28 |
 | 3. Pages & Blog Posts | 6/6 | Complete | 2026-05-07 |
 | 4. Comments, Attachments & Search | 5/5 | Complete | 2026-05-07 |
-| 5. 9.2.13 Compatibility Audit & Fixes | 0/? | Not started | - |
+| 5. 9.2.13 Compatibility Audit & Fixes | 0/7 | Not started | - |
