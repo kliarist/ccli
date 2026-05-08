@@ -113,7 +113,7 @@ Plans:
 - [x] 05-03-PLAN.md — COMPAT-03: Audit Blog Posts (type=blogpost) endpoints against 9.2.13, fix in src/api/page.rs if broken
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 05-04-PLAN.md — COMPAT-04: Audit Comments endpoints against 9.2.13, fix in src/api/comment.rs if broken
+- [x] 05-04-PLAN.md — COMPAT-04: Audit Comments endpoints against 9.2.13, fix in src/api/comment.rs if broken
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 05-05-PLAN.md — COMPAT-05: Audit Attachments (list/download/multipart upload) against 9.2.13, fix in src/api/attachment.rs if broken
@@ -135,4 +135,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. TUI Shell & Spaces | 5/5 | Complete | 2026-04-28 |
 | 3. Pages & Blog Posts | 6/6 | Complete | 2026-05-07 |
 | 4. Comments, Attachments & Search | 5/5 | Complete | 2026-05-07 |
-| 5. 9.2.13 Compatibility Audit & Fixes | 3/7 | In Progress|  |
+| 5. 9.2.13 Compatibility Audit & Fixes | 4/7 | In Progress|  |
