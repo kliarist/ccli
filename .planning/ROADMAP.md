@@ -107,7 +107,7 @@ Plans:
 - [x] 05-01-PLAN.md — COMPAT-01: Audit Spaces endpoints against 9.2.13, fix in src/api/space.rs if broken
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 05-02-PLAN.md — COMPAT-02: Audit Pages CRUD endpoints against 9.2.13, fix in src/api/page.rs if broken
+- [x] 05-02-PLAN.md — COMPAT-02: Audit Pages CRUD endpoints against 9.2.13, fix in src/api/page.rs if broken
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 05-03-PLAN.md — COMPAT-03: Audit Blog Posts (type=blogpost) endpoints against 9.2.13, fix in src/api/page.rs if broken
@@ -135,4 +135,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. TUI Shell & Spaces | 5/5 | Complete | 2026-04-28 |
 | 3. Pages & Blog Posts | 6/6 | Complete | 2026-05-07 |
 | 4. Comments, Attachments & Search | 5/5 | Complete | 2026-05-07 |
-| 5. 9.2.13 Compatibility Audit & Fixes | 1/7 | In Progress|  |
+| 5. 9.2.13 Compatibility Audit & Fixes | 2/7 | In Progress|  |
