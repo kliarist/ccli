@@ -215,19 +215,25 @@ pub async fn list_all_pages(
 #[instrument(skip(client))]
 pub async fn get_page_detail(client: &Client, page_id: &str) -> Result<PageDetail, AppError> {
     let url = format!(
-        "{}/rest/api/content/{}?expand=body.storage,version,ancestors",
+        "{}/rest/api/content/{}",
         client.base_url().trim_end_matches('/'),
         page_id,
     );
     debug!("Fetching page detail: GET {}", url);
 
-    let resp = client.inner().get(&url).send().await.map_err(|e| {
-        if e.is_connect() || e.is_timeout() {
-            AppError::Network(format!("Cannot reach server: {}", e))
-        } else {
-            AppError::Network(e.to_string())
-        }
-    })?;
+    let resp = client
+        .inner()
+        .get(&url)
+        .query(&[("expand", "body.storage,version,ancestors")])
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_connect() || e.is_timeout() {
+                AppError::Network(format!("Cannot reach server: {}", e))
+            } else {
+                AppError::Network(e.to_string())
+            }
+        })?;
 
     match resp.status().as_u16() {
         200 => resp

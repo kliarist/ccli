@@ -105,22 +105,27 @@ pub async fn list_all_spaces(client: &Client) -> Result<Vec<Space>, AppError> {
     let mut start = 0u32;
     let limit = 25u32;
 
-    loop {
-        let url = format!(
-            "{}/rest/api/space?start={}&limit={}",
-            client.base_url().trim_end_matches('/'),
-            start,
-            limit
-        );
-        debug!("Fetching spaces page: GET {}", url);
+    let url = format!("{}/rest/api/space", client.base_url().trim_end_matches('/'));
 
-        let resp = client.inner().get(&url).send().await.map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                AppError::Network(format!("Cannot reach server: {}", e))
-            } else {
-                AppError::Network(e.to_string())
-            }
-        })?;
+    loop {
+        debug!("Fetching spaces page: GET {} start={}", url, start);
+
+        let resp = client
+            .inner()
+            .get(&url)
+            .query(&[
+                ("start", &start.to_string()),
+                ("limit", &limit.to_string()),
+            ])
+            .send()
+            .await
+            .map_err(|e| {
+                if e.is_connect() || e.is_timeout() {
+                    AppError::Network(format!("Cannot reach server: {}", e))
+                } else {
+                    AppError::Network(e.to_string())
+                }
+            })?;
 
         match resp.status().as_u16() {
             200 => {
@@ -162,19 +167,25 @@ pub async fn list_all_spaces(client: &Client) -> Result<Vec<Space>, AppError> {
 #[instrument(skip(client))]
 pub async fn get_space_detail(client: &Client, key: &str) -> Result<SpaceDetail, AppError> {
     let url = format!(
-        "{}/rest/api/space/{}?expand=description.plain,homepage",
+        "{}/rest/api/space/{}",
         client.base_url().trim_end_matches('/'),
         key
     );
     debug!("Fetching space detail: GET {}", url);
 
-    let resp = client.inner().get(&url).send().await.map_err(|e| {
-        if e.is_connect() || e.is_timeout() {
-            AppError::Network(format!("Cannot reach server: {}", e))
-        } else {
-            AppError::Network(e.to_string())
-        }
-    })?;
+    let resp = client
+        .inner()
+        .get(&url)
+        .query(&[("expand", "description.plain,homepage")])
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_connect() || e.is_timeout() {
+                AppError::Network(format!("Cannot reach server: {}", e))
+            } else {
+                AppError::Network(e.to_string())
+            }
+        })?;
 
     match resp.status().as_u16() {
         200 => resp
