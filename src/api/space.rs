@@ -219,6 +219,7 @@ mod tests {
         Client::new(&Config {
             url: base_url.to_string(),
             token: "AT-test-token".to_string(),
+            email: None,
         })
         .expect("client")
     }

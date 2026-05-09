@@ -1,16 +1,12 @@
 //! `ccli init` interactive setup flow.
 //!
-//! Locked decisions implemented:
-//! - D-01 dialoguer for prompts (ColorfulTheme + Input + Password)
-//! - D-02 connection test BEFORE save; do not persist on failure
-//! - D-03 pre-fill URL on re-run; show masked PAT hint; Enter to keep
-//! - Pitfall 4 (RESEARCH.md): empty Password::interact() result on re-run = keep existing
+//! Supports both Confluence Cloud (*.atlassian.net) and Data Center / Server:
+//! - Cloud: prompts for email + API token; uses Basic Auth
+//! - DC/Server: prompts for PAT; uses Bearer Auth
 //!
 //! Security:
-//! - Token value never appears in stdout/stderr or tracing output. The
-//!   masked hint is the ONLY surfaced derivative of the existing token.
-//! - URL is validated to start with `http://` or `https://` before being
-//!   accepted by the prompt (extends T-04-04 mitigation from Plan 04).
+//! - Token value never appears in stdout/stderr or tracing output.
+//! - URL is validated (scheme check) and normalized before use.
 
 use anyhow::Context;
 use dialoguer::theme::ColorfulTheme;
@@ -25,48 +21,80 @@ pub async fn run(_cli: &Cli) -> anyhow::Result<()> {
     let existing = config::load().context("Failed to load existing config")?;
     let theme = ColorfulTheme::default();
 
-    // --- URL prompt: pre-fill on re-run (D-03) + scheme validation ---
-    let url: String = Input::with_theme(&theme)
+    // --- URL prompt: pre-fill on re-run + scheme validation ---
+    let raw_url: String = Input::with_theme(&theme)
         .with_prompt("Confluence URL")
         .with_initial_text(existing.as_ref().map(|c| c.url.as_str()).unwrap_or(""))
         .validate_with(|s: &String| -> Result<(), &'static str> { validate_url(s) })
         .interact_text()
         .context("URL prompt failed")?;
 
-    // --- PAT prompt: masked input + hint on re-run (D-03 + Pitfall 4) ---
-    let pat_prompt = match existing.as_ref() {
-        Some(c) => format!(
-            "Personal Access Token [current: {}]",
-            mask_pat_hint(&c.token)
-        ),
-        None => "Personal Access Token".to_string(),
+    let url = api::normalize_url(&raw_url);
+    let is_cloud = api::is_cloud_url(&url);
+
+    // --- Email prompt (Cloud only) ---
+    let email: Option<String> = if is_cloud {
+        let existing_email = existing
+            .as_ref()
+            .and_then(|c| c.email.as_deref())
+            .unwrap_or("");
+        let raw: String = Input::with_theme(&theme)
+            .with_prompt("Atlassian account email")
+            .with_initial_text(existing_email)
+            .interact_text()
+            .context("Email prompt failed")?;
+        Some(raw)
+    } else {
+        None
     };
 
-    let raw_pat: String = Password::with_theme(&theme)
-        .with_prompt(&pat_prompt)
+    // --- Token prompt: label varies by instance type ---
+    let token_label = if is_cloud {
+        match existing.as_ref().filter(|_| email.is_some()) {
+            Some(c) if c.email == email => {
+                format!("Atlassian API Token [current: {}]", mask_pat_hint(&c.token))
+            }
+            _ => "Atlassian API Token".to_string(),
+        }
+    } else {
+        match existing.as_ref() {
+            Some(c) => format!(
+                "Personal Access Token [current: {}]",
+                mask_pat_hint(&c.token)
+            ),
+            None => "Personal Access Token".to_string(),
+        }
+    };
+
+    let raw_token: String = Password::with_theme(&theme)
+        .with_prompt(&token_label)
         .allow_empty_password(true)
         .interact()
-        .context("PAT prompt failed")?;
+        .context("Token prompt failed")?;
 
-    // Pitfall 4: empty input on re-run = keep existing token; on first run = error
-    let token = if raw_pat.is_empty() {
-        existing
-            .as_ref()
-            .map(|c| c.token.clone())
-            .ok_or_else(|| anyhow::anyhow!("A Personal Access Token is required on first run."))?
+    // Empty input on re-run = keep existing token; on first run = error
+    let token = if raw_token.is_empty() {
+        existing.as_ref().map(|c| c.token.clone()).ok_or_else(|| {
+            if is_cloud {
+                anyhow::anyhow!("An Atlassian API Token is required on first run.")
+            } else {
+                anyhow::anyhow!("A Personal Access Token is required on first run.")
+            }
+        })?
     } else {
-        raw_pat
+        raw_token
     };
 
-    // --- Connection test BEFORE save (D-02) ---
-    let display_name = api::test_connection(&url, &token)
+    // --- Connection test BEFORE save ---
+    let display_name = api::test_connection(&url, &token, email.as_deref())
         .await
         .context("Connection test failed")?;
 
-    // --- Save only on success (D-02) ---
+    // --- Save only on success ---
     let cfg = Config {
         url: url.clone(),
         token,
+        email,
     };
     config::save(&cfg).context("Failed to save config")?;
 

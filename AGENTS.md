@@ -2,6 +2,19 @@
 
 **ccli** — Confluence Data Center CLI (Rust, async).
 
+## Pre-Push Checklist
+
+Run all four before pushing — any failure here means broken code:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo build --locked
+cargo test --locked
+```
+
+To auto-fix formatting: `cargo fmt`
+
 ## Build & Test
 
 ```bash

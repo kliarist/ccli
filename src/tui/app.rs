@@ -1374,6 +1374,7 @@ mod tests {
             version: None,
             ancestors: None,
             body: None,
+            space: None,
             links: crate::api::page::PageLinks::default(),
         };
         s.cache_detail("1".to_string(), detail);

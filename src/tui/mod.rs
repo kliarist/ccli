@@ -570,12 +570,22 @@ fn run_editor_workflow(path: &std::path::Path, initial_content: &str) -> anyhow:
     Ok(new_xml)
 }
 
-/// Extract the space key from `_links.webui` (e.g. `/display/DEV/Page+Title` → `DEV`).
+/// Extract the space key from a PageDetail.
+///
+/// Strategy (most to least reliable):
+/// 1. `detail.space.key` — returned by the API by default, works for Cloud and DC.
+/// 2. URL parsing of `_links.webui`:
+///    - DC format:    `/display/SPACE_KEY/Page+Title`
+///    - Cloud format: `/spaces/SPACE_KEY/pages/123/Page+Title`
+///      or            `/wiki/spaces/SPACE_KEY/pages/123/Page+Title`
 fn extract_space_key_from_webui(detail: &PageDetail) -> Option<String> {
+    if let Some(key) = detail.space.as_ref().map(|s| s.key.clone()) {
+        return Some(key);
+    }
     let webui = detail.links.webui.as_deref()?;
     let mut segs = webui.split('/').filter(|s| !s.is_empty());
     while let Some(seg) = segs.next() {
-        if seg == "display" {
+        if seg == "display" || seg == "spaces" {
             return segs.next().map(|s| s.to_string());
         }
     }
@@ -592,7 +602,7 @@ fn set_pages_status(app: &mut App, text: String, style: StatusStyle) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::page::{PageDetail, PageLinks};
+    use crate::api::page::{PageDetail, PageLinks, PageSpace};
 
     fn detail_with_webui(webui: &str) -> PageDetail {
         PageDetail {
@@ -602,8 +612,27 @@ mod tests {
             version: None,
             ancestors: None,
             body: None,
+            space: None,
             links: PageLinks {
                 webui: Some(webui.to_string()),
+                self_url: None,
+            },
+        }
+    }
+
+    fn detail_with_space_key(key: &str) -> PageDetail {
+        PageDetail {
+            id: "1".into(),
+            title: "T".into(),
+            content_type: "page".into(),
+            version: None,
+            ancestors: None,
+            body: None,
+            space: Some(PageSpace {
+                key: key.to_string(),
+            }),
+            links: PageLinks {
+                webui: None,
                 self_url: None,
             },
         }
@@ -631,6 +660,42 @@ mod tests {
         assert_eq!(
             extract_space_key_from_webui(&detail_with_webui("/display/PROJ/Long+Title")),
             Some("PROJ".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_space_key_prefers_space_field_over_webui_parsing() {
+        let mut detail = detail_with_webui("/display/WRONG/Title");
+        detail.space = Some(PageSpace {
+            key: "CORRECT".to_string(),
+        });
+        assert_eq!(
+            extract_space_key_from_webui(&detail),
+            Some("CORRECT".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_space_key_uses_space_field_when_webui_absent() {
+        assert_eq!(
+            extract_space_key_from_webui(&detail_with_space_key("MYSPACE")),
+            Some("MYSPACE".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_space_key_from_webui_cloud_spaces_format() {
+        assert_eq!(
+            extract_space_key_from_webui(&detail_with_webui("/spaces/TEAM/pages/123/My+Page")),
+            Some("TEAM".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_space_key_from_webui_cloud_wiki_spaces_format() {
+        assert_eq!(
+            extract_space_key_from_webui(&detail_with_webui("/wiki/spaces/TEAM/pages/123/My+Page")),
+            Some("TEAM".to_string())
         );
     }
 

@@ -6,7 +6,7 @@ pub mod page;
 pub mod space;
 
 // Convenience re-exports for callers:
-pub use client::{test_connection, Client};
+pub use client::{is_cloud_url, normalize_url, test_connection, Client};
 pub use error::AppError;
 #[allow(unused_imports)]
 pub use page::{
