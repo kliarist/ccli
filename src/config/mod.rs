@@ -9,11 +9,15 @@ use std::path::Path;
 use crate::api::error::AppError;
 use path::config_path;
 
-/// Single-profile config (D-09): one URL + one PAT, flat schema.
+/// Single-profile config (D-09): one URL + one token, flat schema.
+/// `email` is only present for Confluence Cloud (*.atlassian.net) instances,
+/// where authentication uses Basic Auth (email + API token) instead of Bearer PAT.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub url: String,
     pub token: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
 }
 
 /// Load config from the canonical path with `CCLI_URL` / `CCLI_TOKEN` env var overlay (INIT-03).
@@ -41,12 +45,17 @@ pub fn load() -> anyhow::Result<Option<Config>> {
 pub(crate) fn load_from(path: &Path) -> anyhow::Result<Option<Config>> {
     let env_url = std::env::var("CCLI_URL").ok().filter(|s| !s.is_empty());
     let env_token = std::env::var("CCLI_TOKEN").ok().filter(|s| !s.is_empty());
+    let env_email = std::env::var("CCLI_EMAIL").ok().filter(|s| !s.is_empty());
 
     if !path.exists() {
         // W-06: env-only synthesis. Both vars must be present and non-empty;
         // a partial environment is not sufficient and falls through to None.
         return Ok(match (env_url, env_token) {
-            (Some(url), Some(token)) => Some(Config { url, token }),
+            (Some(url), Some(token)) => Some(Config {
+                url,
+                token,
+                email: env_email,
+            }),
             _ => None,
         });
     }
@@ -60,6 +69,9 @@ pub(crate) fn load_from(path: &Path) -> anyhow::Result<Option<Config>> {
     }
     if let Some(token) = env_token {
         config.token = token;
+    }
+    if let Some(email) = env_email {
+        config.email = Some(email);
     }
     Ok(Some(config))
 }
@@ -127,6 +139,7 @@ mod tests {
         Config {
             url: "https://confluence.example.com".into(),
             token: "AT-test-token-xyz".into(),
+            email: None,
         }
     }
 

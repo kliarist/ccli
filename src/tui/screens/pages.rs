@@ -57,7 +57,6 @@ fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
         ContentType::Page => "Pages",
         ContentType::BlogPost => "Blog Posts",
     };
-    let left_text = format!(" {} — {} ", kind_label, state.space_key);
     let subtitle = match &state.browse_state {
         AppState::Loading => "Loading…".to_string(),
         AppState::Browse | AppState::Modal => format!("{} total", state.pages.len()),
@@ -67,14 +66,27 @@ fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
             state.visible_count()
         ),
     };
-    let left_title = Line::from(Span::styled(
-        left_text,
-        Style::default().add_modifier(Modifier::BOLD),
-    ))
+    let left_title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(
+            kind_label,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" — ", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            state.space_key.clone(),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+    ])
     .left_aligned();
     let right_title = Line::from(Span::styled(
         format!(" {} ", subtitle),
-        Style::default().add_modifier(Modifier::DIM),
+        Style::default().fg(Color::DarkGray),
     ))
     .right_aligned();
     let block = Block::default()
@@ -237,11 +249,13 @@ fn render_preview_pane(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
     f.render_widget(p, area);
 }
 
-/// Build the preview pane Text — labels in BOLD, values default, missing values "—" DIM DarkGray.
+/// Build the preview pane Text — labels in yellow bold, values default, missing "—" DIM DarkGray.
 fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Text<'a> {
     let mut lines: Vec<Line> = Vec::new();
 
-    let label_style = Style::default().add_modifier(Modifier::BOLD);
+    let label_style = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     let dim_style = Style::default()
         .fg(Color::DarkGray)
         .add_modifier(Modifier::DIM);
@@ -252,7 +266,6 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         label_style: Style,
         dim_style: Style,
     ) -> Line<'b> {
-        // 14-char left padded label per UI-SPEC
         let label_padded = format!("{:<14}", label);
         let value_span = if value.is_empty() || value == "—" {
             Span::styled("—", dim_style)
@@ -298,8 +311,25 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         })
         .unwrap_or_default();
 
-    lines.push(field_line("Author:", author, label_style, dim_style));
-    lines.push(field_line("Version:", version, label_style, dim_style));
+    // Author: LightBlue; Version: Green
+    let author_line = Line::from(vec![
+        Span::styled(format!("{:<14}", "Author:"), label_style),
+        if author.is_empty() {
+            Span::styled("—", dim_style)
+        } else {
+            Span::styled(author, Style::default().fg(Color::LightBlue))
+        },
+    ]);
+    let version_line = Line::from(vec![
+        Span::styled(format!("{:<14}", "Version:"), label_style),
+        if version.is_empty() {
+            Span::styled("—", dim_style)
+        } else {
+            Span::styled(version, Style::default().fg(Color::Green))
+        },
+    ]);
+    lines.push(author_line);
+    lines.push(version_line);
     lines.push(field_line(
         "Last Modified:",
         last_modified,
@@ -465,7 +495,9 @@ fn render_help_modal(f: &mut Frame, full_area: Rect) {
             Style::default().add_modifier(Modifier::BOLD),
         ));
 
-    let bold = Style::default().add_modifier(Modifier::BOLD);
+    let bold = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     let key_style = Style::default().fg(Color::Cyan);
     let row = |k: &'static str, desc: &'static str| {
         Line::from(vec![

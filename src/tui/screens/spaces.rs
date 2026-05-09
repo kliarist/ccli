@@ -69,16 +69,21 @@ fn render_title(f: &mut Frame, app: &App, area: Rect) {
         }
     };
 
-    // Ratatui 0.30: block::Title removed — use Line with alignment for right-aligned subtitle
-    let left_title = Line::from(Span::styled(
-        " Spaces ",
-        Style::default().add_modifier(Modifier::BOLD),
-    ))
+    let left_title = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(
+            "Spaces",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+    ])
     .left_aligned();
 
     let right_title = Line::from(Span::styled(
         format!(" {} ", subtitle),
-        Style::default().add_modifier(Modifier::DIM),
+        Style::default().fg(Color::DarkGray),
     ))
     .right_aligned();
 
@@ -163,7 +168,16 @@ fn render_list_pane(f: &mut Frame, app: &mut App, area: Rect) {
             } else {
                 space.name.clone()
             };
-            ListItem::new(format!("{:<8} {}", space.key, name))
+            let line = Line::from(vec![
+                Span::styled(
+                    format!("{:<8}", space.key),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(format!(" {}", name)),
+            ]);
+            ListItem::new(line)
         })
         .collect();
 
@@ -227,13 +241,14 @@ fn build_preview_text<'a>(
     space: &'a crate::api::space::Space,
     detail: Option<&'a SpaceDetail>,
 ) -> Text<'a> {
-    let label_style = Style::default().add_modifier(Modifier::BOLD);
+    let label_style = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     let dim_style = Style::default()
         .fg(Color::DarkGray)
         .add_modifier(Modifier::DIM);
     let value_style = Style::default();
 
-    // Render a single field line with 14-char label padding
     let make_field = |label: &'static str, value: Option<String>| -> Line<'a> {
         let val_span = match value {
             Some(v) if !v.is_empty() => Span::styled(v, value_style),
@@ -245,7 +260,28 @@ fn build_preview_text<'a>(
         ])
     };
 
-    // Description: from SpaceDetail.description.plain.value — "No description" fallback (D-21)
+    // Key value gets a cyan accent
+    let key_line = Line::from(vec![
+        Span::styled(format!("{:<14}", "Key:"), label_style),
+        Span::styled(
+            space.key.clone(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]);
+
+    // Type gets a magenta badge
+    let type_line = Line::from(vec![
+        Span::styled(format!("{:<14}", "Type:"), label_style),
+        match space.space_type.as_deref() {
+            Some(t) if !t.is_empty() => {
+                Span::styled(t.to_string(), Style::default().fg(Color::Magenta))
+            }
+            _ => Span::styled("—", dim_style),
+        },
+    ]);
+
     let description = detail
         .and_then(|d| d.description.as_ref())
         .and_then(|d| d.plain.as_ref())
@@ -263,16 +299,15 @@ fn build_preview_text<'a>(
         ]),
     };
 
-    // Homepage URL: from SpaceDetail.homepage._links.webui
     let homepage_url = detail
         .and_then(|d| d.homepage.as_ref())
         .and_then(|h| h.links.as_ref())
         .and_then(|l| l.webui.clone());
 
     Text::from(vec![
-        make_field("Key:", Some(space.key.clone())),
+        key_line,
         make_field("Name:", Some(space.name.clone())),
-        make_field("Type:", space.space_type.clone()),
+        type_line,
         description_line,
         make_field("Homepage URL:", homepage_url),
     ])
@@ -428,8 +463,9 @@ fn render_help_modal(f: &mut Frame, area: Rect) {
 
     let inner = block.inner(modal_area);
 
-    // Content per UI-SPEC Help Modal Content section
-    let heading = Style::default().add_modifier(Modifier::BOLD);
+    let heading = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     let key_style = Style::default().fg(Color::Cyan);
     // Key column: 12 chars wide, left-aligned per UI-SPEC
     let text = Text::from(vec![

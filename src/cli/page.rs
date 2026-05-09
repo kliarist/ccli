@@ -439,6 +439,7 @@ mod tests {
         Client::new(&Config {
             url: base_url.to_string(),
             token: "AT-test-token".to_string(),
+            email: None,
         })
         .expect("client")
     }
@@ -642,6 +643,7 @@ mod tests {
                     representation: Some("storage".into()),
                 }),
             }),
+            space: None,
             links: PageLinks::default(),
         }
     }
@@ -654,6 +656,7 @@ mod tests {
             version: None,
             ancestors: None,
             body: None,
+            space: None,
             links: PageLinks {
                 webui: Some(webui.to_string()),
                 self_url: None,

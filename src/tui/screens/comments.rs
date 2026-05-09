@@ -37,18 +37,29 @@ fn render_title(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
         .border_type(BorderType::Plain);
     let inner = block.inner(area);
     f.render_widget(block, area);
-    // " Comments — {PAGE-ID}                         {N} total"
     let count_text = match state.browse_state {
         AppState::Loading => "Loading…".to_string(),
         _ => format!("{} total", state.comments.len()),
     };
+    let left_plain = " Comments — ".to_string();
     let total_w = inner.width as usize;
-    let left = format!(" Comments — {}", state.page_id);
-    let pad = total_w.saturating_sub(left.chars().count() + count_text.chars().count() + 1);
+    let left_len = left_plain.chars().count() + state.page_id.chars().count();
+    let pad = total_w.saturating_sub(left_len + count_text.chars().count() + 1);
     let line = Line::from(vec![
-        Span::styled(left, Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(
+            left_plain,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            state.page_id.clone(),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(" ".repeat(pad)),
-        Span::styled(count_text, Style::default().add_modifier(Modifier::DIM)),
+        Span::styled(count_text, Style::default().fg(Color::DarkGray)),
         Span::raw(" "),
     ]);
     f.render_widget(Paragraph::new(line), inner);
@@ -86,10 +97,7 @@ fn render_list_pane(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) 
     let items: Vec<ListItem> = state
         .comments
         .iter()
-        .map(|c| {
-            let label = format_list_row(c, inner_w.saturating_sub(2));
-            ListItem::new(label)
-        })
+        .map(|c| ListItem::new(format_list_row(c, inner_w.saturating_sub(2))))
         .collect();
 
     let list = List::new(items)
@@ -105,20 +113,22 @@ fn render_list_pane(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) 
     f.render_stateful_widget(list, area, &mut state.list_state);
 }
 
-/// Build "{author} · {date} · {first_line}" truncated to `max_chars` with "…".
-fn format_list_row(c: &Comment, max_chars: usize) -> String {
+/// Build a colored line: LightBlue author · DarkGray date · default first-line, truncated.
+fn format_list_row(c: &Comment, max_chars: usize) -> Line<'static> {
     let author = c
         .version
         .as_ref()
         .and_then(|v| v.by.as_ref())
         .and_then(|a| a.display_name.as_deref())
-        .unwrap_or("—");
+        .unwrap_or("—")
+        .to_string();
     let date = c
         .version
         .as_ref()
         .and_then(|v| v.when.as_deref())
         .map(|w| w.get(..10).unwrap_or(w))
-        .unwrap_or("—");
+        .unwrap_or("—")
+        .to_string();
     let body = c
         .body
         .as_ref()
@@ -127,8 +137,32 @@ fn format_list_row(c: &Comment, max_chars: usize) -> String {
         .unwrap_or("");
     let stripped = strip_storage_xml(body);
     let first_line = stripped.lines().next().unwrap_or("").to_string();
+
+    // Measure total chars to decide whether to truncate
+    let sep = " · ";
+    let total = author.chars().count()
+        + sep.len()
+        + date.chars().count()
+        + sep.len()
+        + first_line.chars().count();
+
+    let sep_style = Style::default().fg(Color::DarkGray);
+    let date_style = Style::default().fg(Color::DarkGray);
+    let author_style = Style::default().fg(Color::LightBlue);
+
+    if total <= max_chars {
+        return Line::from(vec![
+            Span::styled(author, author_style),
+            Span::styled(sep, sep_style),
+            Span::styled(date, date_style),
+            Span::styled(sep, sep_style),
+            Span::raw(first_line),
+        ]);
+    }
+
+    // Need to truncate — fall back to plain truncated string for simplicity
     let raw = format!("{} · {} · {}", author, date, first_line);
-    truncate_with_ellipsis(&raw, max_chars)
+    Line::raw(truncate_with_ellipsis(&raw, max_chars))
 }
 
 fn truncate_with_ellipsis(s: &str, max: usize) -> String {
@@ -164,7 +198,9 @@ fn render_preview_pane(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
         return;
     };
 
-    let bold = Style::default().add_modifier(Modifier::BOLD);
+    let bold = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
     let dim_dash = Style::default()
         .fg(Color::DarkGray)
         .add_modifier(Modifier::DIM);
@@ -198,7 +234,15 @@ fn render_preview_pane(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
     }
 
     let mut lines: Vec<Line> = Vec::new();
-    lines.push(field("Author:", author.as_deref(), bold, dim_dash));
+    // Author value in LightBlue to match list pane
+    let author_value_line = Line::from(vec![
+        Span::styled(format!("{:<14}", "Author:"), bold),
+        match author.as_deref() {
+            Some(a) => Span::styled(a.to_string(), Style::default().fg(Color::LightBlue)),
+            None => Span::styled("—", dim_dash),
+        },
+    ]);
+    lines.push(author_value_line);
     lines.push(field("Date:", date.as_deref(), bold, dim_dash));
     lines.push(Line::from(""));
     for body_line in body_text.lines() {

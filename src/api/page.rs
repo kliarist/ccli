@@ -102,6 +102,12 @@ pub struct PageLinks {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
+pub struct PageSpace {
+    pub key: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PageDetail {
     pub id: String,
     pub title: String,
@@ -110,6 +116,8 @@ pub struct PageDetail {
     pub version: Option<PageVersion>,
     pub ancestors: Option<Vec<PageAncestor>>,
     pub body: Option<PageBody>,
+    /// Present by default in the API response; most reliable source of space key.
+    pub space: Option<PageSpace>,
     #[serde(rename = "_links")]
     pub links: PageLinks,
 }
@@ -409,6 +417,7 @@ mod tests {
         Client::new(&Config {
             url: base_url.to_string(),
             token: "AT-test-token".to_string(),
+            email: None,
         })
         .expect("client")
     }
