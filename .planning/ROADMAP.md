@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 ### v1.1 Phases (Milestone: confluence-9213-compat)
 
-- [ ] **Phase 5: 9.2.13 Compatibility Audit & Fixes** - Systematically verify all REST endpoint areas against Confluence 9.2.13, document findings in COMPAT-9213.md, and apply any fixes required
+- [x] **Phase 5: 9.2.13 Compatibility Audit & Fixes** - Systematically verify all REST endpoint areas against Confluence 9.2.13, document findings in COMPAT-9213.md, and apply any fixes required (completed 2026-05-09)
 
 ## Phase Details
 
@@ -122,7 +122,7 @@ Plans:
 - [x] 05-06-PLAN.md — COMPAT-06: Audit CQL Search endpoint against 9.2.13, fix in src/cli/page.rs if broken
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 05-07-PLAN.md — TMAT-01: Synthesize 6-row COMPAT-9213.md test matrix at repo root from per-area findings
+- [x] 05-07-PLAN.md — TMAT-01: Synthesize 6-row COMPAT-9213.md test matrix at repo root from per-area findings
 
 ## Progress
 
@@ -135,4 +135,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. TUI Shell & Spaces | 5/5 | Complete | 2026-04-28 |
 | 3. Pages & Blog Posts | 6/6 | Complete | 2026-05-07 |
 | 4. Comments, Attachments & Search | 5/5 | Complete | 2026-05-07 |
-| 5. 9.2.13 Compatibility Audit & Fixes | 6/7 | In Progress|  |
+| 5. 9.2.13 Compatibility Audit & Fixes | 7/7 | Complete   | 2026-05-09 |

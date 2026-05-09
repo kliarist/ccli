@@ -77,7 +77,7 @@
 
 ### Test Matrix
 
-- [ ] **TMAT-01**: A `COMPAT-9213.md` test matrix documents request/response expectations and actual behavior for all 6 endpoint areas on Confluence 9.2.13, with pass/fail/needs-fix status per endpoint
+- [x] **TMAT-01**: A `COMPAT-9213.md` test matrix documents request/response expectations and actual behavior for all 6 endpoint areas on Confluence 9.2.13, with pass/fail/needs-fix status per endpoint
 
 ## v2 Requirements
 
@@ -163,7 +163,7 @@
 | COMPAT-04 | Phase 5 | Complete |
 | COMPAT-05 | Phase 5 | Complete |
 | COMPAT-06 | Phase 5 | Complete |
-| TMAT-01 | Phase 5 | Pending |
+| TMAT-01 | Phase 5 | Complete |
 
 **Coverage (v1):**
 - v1 requirements: 35 total
