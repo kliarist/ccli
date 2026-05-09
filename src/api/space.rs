@@ -113,10 +113,7 @@ pub async fn list_all_spaces(client: &Client) -> Result<Vec<Space>, AppError> {
         let resp = client
             .inner()
             .get(&url)
-            .query(&[
-                ("start", &start.to_string()),
-                ("limit", &limit.to_string()),
-            ])
+            .query(&[("start", &start.to_string()), ("limit", &limit.to_string())])
             .send()
             .await
             .map_err(|e| {
