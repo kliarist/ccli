@@ -1,4 +1,5 @@
-//! Confluence Data Center API client and PAT validation probe.
+//! Confluence Data Center / Server REST API client and PAT validation probe.
+//! API reference: https://docs.atlassian.com/ConfluenceServer/rest/8.9.3/
 //!
 //! Locked decisions implemented:
 //! - D-08 tokio + reqwest async
