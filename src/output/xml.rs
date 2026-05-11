@@ -15,6 +15,8 @@
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::Event;
 use quick_xml::Reader;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 
 /// Convert Confluence storage XML into human-readable plain text.
 ///
@@ -145,6 +147,228 @@ fn emit_text(
     } else {
         output.push_str(text);
     }
+}
+
+/// Convert Confluence storage XML into styled ratatui Lines for the TUI preview pane.
+///
+/// Applies visual formatting per element type:
+/// - h1: bold magenta + `══` underline separator
+/// - h2: bold cyan + `──` separator
+/// - h3–h6: bold yellow (indented by level)
+/// - p: plain text lines + blank line gap
+/// - ul/ol li: `  •` / `  N.` prefix
+/// - code (inline): green text
+/// - pre / code block: dim background block with cyan text
+/// - hr: dim `────` rule
+/// - br: blank line
+/// - All other tags stripped, inner text retained (Pitfall 7)
+pub fn render_xml_to_lines(xml: &str) -> Vec<Line<'static>> {
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().trim_text(true);
+
+    let mut lines: Vec<Line<'static>> = Vec::new();
+
+    // Current accumulated spans for the line being built
+    let mut current: Vec<Span<'static>> = Vec::new();
+
+    // Tag context
+    let mut heading_level: u8 = 0;
+    let mut code_depth: u32 = 0;
+    let mut pre_depth: u32 = 0;
+    let mut li_pending = false;
+    let mut ol_counters: Vec<u32> = Vec::new(); // stack for nested ordered lists
+    let mut in_ol = false;
+
+    let flush = |current: &mut Vec<Span<'static>>, lines: &mut Vec<Line<'static>>| {
+        if !current.is_empty() {
+            lines.push(Line::from(std::mem::take(current)));
+        }
+    };
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(ref e)) => match e.name().as_ref() {
+                b"h1" => heading_level = 1,
+                b"h2" => heading_level = 2,
+                b"h3" => heading_level = 3,
+                b"h4" => heading_level = 4,
+                b"h5" => heading_level = 5,
+                b"h6" => heading_level = 6,
+                b"pre" => pre_depth += 1,
+                b"code" => code_depth += 1,
+                b"li" => li_pending = true,
+                b"ol" => {
+                    ol_counters.push(0);
+                    in_ol = true;
+                }
+                b"ul" => {
+                    in_ol = false;
+                }
+                _ => {}
+            },
+            Ok(Event::End(ref e)) => match e.name().as_ref() {
+                b"h1" | b"h2" | b"h3" | b"h4" | b"h5" | b"h6" => {
+                    flush(&mut current, &mut lines);
+                    let sep = match heading_level {
+                        1 => Span::styled("══════════════════════════════════════════════════════════", Style::default().fg(Color::Magenta).add_modifier(Modifier::DIM)),
+                        _ => Span::styled("──────────────────────────────────────────────────────────", Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)),
+                    };
+                    lines.push(Line::from(sep));
+                    lines.push(Line::from(""));
+                    heading_level = 0;
+                }
+                b"p" => {
+                    flush(&mut current, &mut lines);
+                    lines.push(Line::from(""));
+                }
+                b"li" => {
+                    flush(&mut current, &mut lines);
+                }
+                b"pre" => {
+                    pre_depth = pre_depth.saturating_sub(1);
+                    flush(&mut current, &mut lines);
+                    lines.push(Line::from(""));
+                }
+                b"code" => {
+                    code_depth = code_depth.saturating_sub(1);
+                }
+                b"ol" => {
+                    ol_counters.pop();
+                    in_ol = !ol_counters.is_empty();
+                }
+                b"hr" => {
+                    lines.push(Line::from(Span::styled(
+                        "────────────────────────────────────────────────────────────",
+                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                    )));
+                }
+                _ => {}
+            },
+            Ok(Event::Empty(ref e)) => {
+                if e.name().as_ref() == b"br" {
+                    flush(&mut current, &mut lines);
+                } else if e.name().as_ref() == b"hr" {
+                    lines.push(Line::from(Span::styled(
+                        "────────────────────────────────────────────────────────────",
+                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                    )));
+                }
+            }
+            Ok(Event::Text(ref e)) => {
+                let raw = e.decode().unwrap_or_default();
+                if !raw.is_empty() {
+                    push_text(
+                        raw.into_owned(),
+                        heading_level,
+                        code_depth,
+                        pre_depth,
+                        &mut li_pending,
+                        &mut ol_counters,
+                        in_ol,
+                        &mut current,
+                        &mut lines,
+                    );
+                }
+            }
+            Ok(Event::GeneralRef(ref e)) => {
+                let ref_name = e.decode().unwrap_or_default();
+                let resolved = if let Some(s) = resolve_predefined_entity(&ref_name) {
+                    Some(s.to_string())
+                } else if let Ok(Some(ch)) = e.resolve_char_ref() {
+                    Some(ch.to_string())
+                } else {
+                    None
+                };
+                if let Some(text) = resolved {
+                    push_text(
+                        text,
+                        heading_level,
+                        code_depth,
+                        pre_depth,
+                        &mut li_pending,
+                        &mut ol_counters,
+                        in_ol,
+                        &mut current,
+                        &mut lines,
+                    );
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+    }
+
+    flush(&mut current, &mut lines);
+
+    // Collapse runs of more than one consecutive blank line
+    let mut out: Vec<Line<'static>> = Vec::with_capacity(lines.len());
+    let mut blank_run = 0u32;
+    for line in lines {
+        let is_blank = line.spans.is_empty()
+            || line.spans.iter().all(|s| s.content.trim().is_empty());
+        if is_blank {
+            blank_run += 1;
+            if blank_run <= 1 {
+                out.push(line);
+            }
+        } else {
+            blank_run = 0;
+            out.push(line);
+        }
+    }
+    out
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_text(
+    text: String,
+    heading_level: u8,
+    code_depth: u32,
+    pre_depth: u32,
+    li_pending: &mut bool,
+    ol_counters: &mut Vec<u32>,
+    in_ol: bool,
+    current: &mut Vec<Span<'static>>,
+    lines: &mut Vec<Line<'static>>,
+) {
+    if pre_depth > 0 {
+        // Pre block: each source line becomes its own styled line
+        for src_line in text.split('\n') {
+            current.push(Span::styled(
+                format!("  {}", src_line),
+                Style::default().fg(Color::Green).add_modifier(Modifier::DIM),
+            ));
+            lines.push(Line::from(std::mem::take(current)));
+        }
+        return;
+    }
+
+    if *li_pending {
+        let prefix = if in_ol {
+            let n = ol_counters.last_mut().map(|c| { *c += 1; *c }).unwrap_or(1);
+            format!("  {}. ", n)
+        } else {
+            "  • ".to_string()
+        };
+        current.push(Span::styled(prefix, Style::default().fg(Color::DarkGray)));
+        *li_pending = false;
+    }
+
+    let span = if heading_level > 0 {
+        let style = match heading_level {
+            1 => Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+            2 => Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            _ => Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+        };
+        Span::styled(text, style)
+    } else if code_depth > 0 {
+        Span::styled(text, Style::default().fg(Color::Green))
+    } else {
+        Span::raw(text)
+    };
+
+    current.push(span);
 }
 
 /// Collapse runs of three or more consecutive newlines down to exactly two ("\n\n").

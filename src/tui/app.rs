@@ -441,6 +441,7 @@ pub struct PagesBrowseState {
     pub spinner_frame: usize,
     pub error: Option<String>,
     pub status_message: Option<StatusMessage>,
+    pub preview_scroll: u16,
 }
 
 #[allow(dead_code)]
@@ -462,6 +463,7 @@ impl PagesBrowseState {
             spinner_frame: 0,
             error: None,
             status_message: None,
+            preview_scroll: 0,
         }
     }
 
@@ -522,6 +524,7 @@ impl PagesBrowseState {
         self.list_state.select(Some(next));
         self.last_selection_change = Some(Instant::now());
         self.pending_preview_id = None;
+        self.preview_scroll = 0;
     }
 
     pub fn select_prev(&mut self) {
@@ -537,12 +540,14 @@ impl PagesBrowseState {
         self.list_state.select(Some(prev));
         self.last_selection_change = Some(Instant::now());
         self.pending_preview_id = None;
+        self.preview_scroll = 0;
     }
 
     pub fn select_first(&mut self) {
         if !self.filtered_indices.is_empty() {
             self.list_state.select(Some(0));
             self.last_selection_change = Some(Instant::now());
+            self.preview_scroll = 0;
         }
     }
 
@@ -551,6 +556,7 @@ impl PagesBrowseState {
             let last = self.filtered_indices.len() - 1;
             self.list_state.select(Some(last));
             self.last_selection_change = Some(Instant::now());
+            self.preview_scroll = 0;
         }
     }
 
@@ -694,6 +700,14 @@ impl PagesBrowseState {
                     } else {
                         KeyAction::None
                     }
+                }
+                KeyCode::PageDown => {
+                    self.preview_scroll = self.preview_scroll.saturating_add(10);
+                    KeyAction::None
+                }
+                KeyCode::PageUp => {
+                    self.preview_scroll = self.preview_scroll.saturating_sub(10);
+                    KeyAction::None
                 }
                 _ => KeyAction::None,
             },
