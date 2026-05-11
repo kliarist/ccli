@@ -271,14 +271,20 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
     let mut lines: Vec<Line> = Vec::new();
 
     let label_style = Style::default().fg(Color::DarkGray);
-    let dim_style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM);
-    let sep_style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM);
+    let dim_style = Style::default()
+        .fg(Color::DarkGray)
+        .add_modifier(Modifier::DIM);
+    let sep_style = Style::default()
+        .fg(Color::DarkGray)
+        .add_modifier(Modifier::DIM);
     let separator = Span::styled("─".repeat(64), sep_style);
 
     // Title — prominent, no label
     lines.push(Line::from(Span::styled(
         page.title.clone(),
-        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(separator.clone()));
 

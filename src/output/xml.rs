@@ -210,8 +210,18 @@ pub fn render_xml_to_lines(xml: &str) -> Vec<Line<'static>> {
                 b"h1" | b"h2" | b"h3" | b"h4" | b"h5" | b"h6" => {
                     flush(&mut current, &mut lines);
                     let sep = match heading_level {
-                        1 => Span::styled("══════════════════════════════════════════════════════════", Style::default().fg(Color::Magenta).add_modifier(Modifier::DIM)),
-                        _ => Span::styled("──────────────────────────────────────────────────────────", Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)),
+                        1 => Span::styled(
+                            "══════════════════════════════════════════════════════════",
+                            Style::default()
+                                .fg(Color::Magenta)
+                                .add_modifier(Modifier::DIM),
+                        ),
+                        _ => Span::styled(
+                            "──────────────────────────────────────────────────────────",
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::DIM),
+                        ),
                     };
                     lines.push(Line::from(sep));
                     lines.push(Line::from(""));
@@ -239,7 +249,9 @@ pub fn render_xml_to_lines(xml: &str) -> Vec<Line<'static>> {
                 b"hr" => {
                     lines.push(Line::from(Span::styled(
                         "────────────────────────────────────────────────────────────",
-                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::DIM),
                     )));
                 }
                 _ => {}
@@ -250,7 +262,9 @@ pub fn render_xml_to_lines(xml: &str) -> Vec<Line<'static>> {
                 } else if e.name().as_ref() == b"hr" {
                     lines.push(Line::from(Span::styled(
                         "────────────────────────────────────────────────────────────",
-                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::DIM),
                     )));
                 }
             }
@@ -305,8 +319,8 @@ pub fn render_xml_to_lines(xml: &str) -> Vec<Line<'static>> {
     let mut out: Vec<Line<'static>> = Vec::with_capacity(lines.len());
     let mut blank_run = 0u32;
     for line in lines {
-        let is_blank = line.spans.is_empty()
-            || line.spans.iter().all(|s| s.content.trim().is_empty());
+        let is_blank =
+            line.spans.is_empty() || line.spans.iter().all(|s| s.content.trim().is_empty());
         if is_blank {
             blank_run += 1;
             if blank_run <= 1 {
@@ -337,7 +351,9 @@ fn push_text(
         for src_line in text.split('\n') {
             current.push(Span::styled(
                 format!("  {}", src_line),
-                Style::default().fg(Color::Green).add_modifier(Modifier::DIM),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::DIM),
             ));
             lines.push(Line::from(std::mem::take(current)));
         }
@@ -346,7 +362,13 @@ fn push_text(
 
     if *li_pending {
         let prefix = if in_ol {
-            let n = ol_counters.last_mut().map(|c| { *c += 1; *c }).unwrap_or(1);
+            let n = ol_counters
+                .last_mut()
+                .map(|c| {
+                    *c += 1;
+                    *c
+                })
+                .unwrap_or(1);
             format!("  {}. ", n)
         } else {
             "  • ".to_string()
@@ -357,9 +379,15 @@ fn push_text(
 
     let span = if heading_level > 0 {
         let style = match heading_level {
-            1 => Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
-            2 => Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            _ => Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            1 => Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+            2 => Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+            _ => Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         };
         Span::styled(text, style)
     } else if code_depth > 0 {

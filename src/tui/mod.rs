@@ -28,7 +28,9 @@ pub mod screens;
 use std::time::Duration;
 
 use anyhow::Context;
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, MouseEventKind};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, MouseEventKind,
+};
 use crossterm::execute;
 use tokio::sync::{mpsc, oneshot};
 
@@ -243,9 +245,11 @@ async fn run_app(
                             Some(Screen::PagesBrowse { state, .. }) => {
                                 if in_preview {
                                     if scroll_down {
-                                        state.preview_scroll = state.preview_scroll.saturating_add(3);
+                                        state.preview_scroll =
+                                            state.preview_scroll.saturating_add(3);
                                     } else {
-                                        state.preview_scroll = state.preview_scroll.saturating_sub(3);
+                                        state.preview_scroll =
+                                            state.preview_scroll.saturating_sub(3);
                                     }
                                 } else if scroll_down {
                                     state.select_next();
@@ -255,7 +259,11 @@ async fn run_app(
                             }
                             _ => {
                                 if !in_preview {
-                                    if scroll_down { app.select_next(); } else { app.select_prev(); }
+                                    if scroll_down {
+                                        app.select_next();
+                                    } else {
+                                        app.select_prev();
+                                    }
                                 }
                             }
                         }
