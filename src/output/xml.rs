@@ -341,7 +341,7 @@ fn push_text(
     code_depth: u32,
     pre_depth: u32,
     li_pending: &mut bool,
-    ol_counters: &mut Vec<u32>,
+    ol_counters: &mut [u32],
     in_ol: bool,
     current: &mut Vec<Span<'static>>,
     lines: &mut Vec<Line<'static>>,
