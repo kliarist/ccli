@@ -1,41 +1,31 @@
-# ccli
+# ccli 🦀
 
 Confluence CLI and terminal UI written in Rust, for when the browser tab count has become a moral issue.
 
 `ccli` works with both **Confluence Data Center** and **Confluence Cloud**. It supports command-oriented usage and an interactive TUI, so you can browse, search, and edit Confluence content without leaving the terminal.
 
-## Installation
+## ⚡ Installation
 
-Download a pre-built binary from the [latest release](https://github.com/kliarist/ccli/releases/latest):
-
-| Platform | File |
-|----------|------|
-| macOS Apple Silicon | `ccli-v*-aarch64-apple-darwin.tar.gz` |
-| macOS Intel | `ccli-v*-x86_64-apple-darwin.tar.gz` |
-| Linux x86\_64 (musl) | `ccli-v*-x86_64-unknown-linux-musl.tar.gz` |
-| Linux ARM64 (musl) | `ccli-v*-aarch64-unknown-linux-musl.tar.gz` |
-| Windows x86\_64 | `ccli-v*-x86_64-pc-windows-msvc.zip` |
-
-Or build from source:
+Grab a pre-built binary from the [latest release](https://github.com/kliarist/ccli/releases/latest), or build from source:
 
 ```bash
 cargo install --path .
 ```
 
-## Features
+## ✨ Features
 
-- Interactive TUI launched by running bare `ccli`
-- Fuzzy filtering in all list views
-- Mouse scroll support — scroll the list or preview pane independently
-- Styled page preview: formatted headings, bullet lists, code blocks
-- Space listing and browsing
-- Page listing, viewing, searching, creating, and editing
-- Blog post listing, viewing, creating, and editing
-- Plain-text comment authoring in `$EDITOR`
-- Attachment listing, download, and upload
-- Pretty table output for interactive terminals; TSV for pipes
+- 🖥️ Interactive TUI launched by running bare `ccli`
+- 🔍 Fuzzy filtering in all list views
+- 🖱️ Mouse scroll support — scroll the list or preview pane independently
+- 🎨 Styled page preview: formatted headings, bullet lists, code blocks
+- 📁 Space listing and browsing
+- 📄 Page listing, viewing, searching, creating, and editing
+- 📝 Blog post listing, viewing, creating, and editing
+- 💬 Plain-text comment authoring in `$EDITOR`
+- 📎 Attachment listing, download, and upload
+- 📊 Pretty table output for interactive terminals; TSV for pipes
 
-## Configuration
+## 🔧 Configuration
 
 First-time setup:
 
@@ -62,7 +52,7 @@ Environment variable overrides (useful for CI and containers):
 
 If both `CCLI_URL` and `CCLI_TOKEN` are set, `ccli` runs without a config file.
 
-## TUI
+## 🖥️ TUI
 
 Launch with:
 
@@ -70,7 +60,7 @@ Launch with:
 ccli
 ```
 
-### Keyboard shortcuts
+### ⌨️ Keyboard shortcuts
 
 | Key | Action |
 |-----|--------|
@@ -87,16 +77,16 @@ ccli
 | `?` | Show key bindings |
 | `q` | Quit |
 
-### Mouse
+### 🖱️ Mouse
 
 - Scroll on the **left pane** to move the list selection up and down
 - Scroll on the **right pane** to scroll the page preview
 
-### Filter
+### 🔍 Filter
 
 Press `/` to open the fuzzy filter. All printable characters type into the filter query. Use `↑`/`↓` arrow keys to navigate the filtered list, and `Enter` to open the selected item. `Esc` closes the filter and restores the full list.
 
-## CLI Commands
+## 🛠️ CLI Commands
 
 Top-level help:
 
@@ -152,7 +142,7 @@ ccli attachment get 123456 design.pdf
 ccli attachment add 123456 ./design.pdf
 ```
 
-## Output Modes
+## 📤 Output Modes
 
 Global flags apply to all tabular commands:
 
@@ -167,7 +157,7 @@ ccli --plain --no-headers --columns key,name space list
 | `--no-headers` | Suppress header row |
 | `--columns a,b` | Show only these columns, in this order |
 
-## Editor Integration
+## 📝 Editor Integration
 
 The following commands open `$EDITOR` (falls back to `$VISUAL`, then `vi`):
 
@@ -177,14 +167,14 @@ The following commands open `$EDITOR` (falls back to `$VISUAL`, then `vi`):
 
 Pages and blog posts edit Confluence storage XML directly. Comments are written as plain text and converted to storage format automatically.
 
-## Build & Test
+## 🏗️ Build & Test
 
 ```bash
 cargo build --release
 cargo test
 ```
 
-## Tech Stack
+## 🧰 Tech Stack
 
 | Concern | Crate |
 |---------|-------|
@@ -195,7 +185,7 @@ cargo test
 | Fuzzy matching | `nucleo-matcher` |
 | XML parsing | `quick-xml` |
 
-## License
+## 📜 License
 
 MIT. See [LICENSE](LICENSE).
 
