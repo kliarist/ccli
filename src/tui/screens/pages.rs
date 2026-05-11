@@ -271,9 +271,6 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
     let mut lines: Vec<Line> = Vec::new();
 
     let label_style = Style::default().fg(Color::DarkGray);
-    let dim_style = Style::default()
-        .fg(Color::DarkGray)
-        .add_modifier(Modifier::DIM);
     let sep_style = Style::default()
         .fg(Color::DarkGray)
         .add_modifier(Modifier::DIM);
