@@ -10,6 +10,8 @@ pub mod table;
 pub mod tsv;
 pub mod xml;
 #[allow(unused_imports)]
+pub use xml::render_xml_to_lines;
+#[allow(unused_imports)]
 pub use xml::strip_storage_xml;
 
 use is_terminal::IsTerminal;

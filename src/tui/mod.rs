@@ -28,7 +28,8 @@ pub mod screens;
 use std::time::Duration;
 
 use anyhow::Context;
-use crossterm::event::{self, Event, KeyEventKind};
+use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, MouseEventKind};
+use crossterm::execute;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::api::comment::{list_comments, Comment};
@@ -74,14 +75,12 @@ pub async fn run() -> anyhow::Result<()> {
 
     // Enter alternate screen + raw mode + install panic hook
     let mut terminal = ratatui::init();
+    let _ = execute!(std::io::stdout(), EnableMouseCapture);
 
-    // Run the event loop — poll() is synchronous so we keep it on the async executor
-    // thread, which is acceptable for a single-user CLI (RESEARCH.md Pitfall 6 /
-    // Open Question 3). API fetches run in their own tokio::spawn tasks and communicate
-    // via channels.
     let result = run_app(&mut terminal, client, base_url, spaces_rx).await;
 
     // Always restore terminal, even on error (T-02-21)
+    let _ = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();
 
     result
@@ -229,10 +228,40 @@ async fn run_app(
             state.tick();
         }
 
-        // Poll for key events with 100ms timeout (drives spinner tick, RESEARCH.md Pitfall 4)
+        // Poll for key/mouse events with 100ms timeout (drives spinner tick, RESEARCH.md Pitfall 4)
         if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
+            match event::read()? {
+                Event::Mouse(mouse) => {
+                    let size = terminal.size().unwrap_or_default();
+                    // Body split: left 40% = list pane, right 60% = preview pane
+                    let split_col = size.width * 40 / 100;
+                    let in_preview = mouse.column >= split_col;
+                    let scroll_down = matches!(mouse.kind, MouseEventKind::ScrollDown);
+                    let scroll_up = matches!(mouse.kind, MouseEventKind::ScrollUp);
+                    if scroll_down || scroll_up {
+                        match app.screen_stack.last_mut() {
+                            Some(Screen::PagesBrowse { state, .. }) => {
+                                if in_preview {
+                                    if scroll_down {
+                                        state.preview_scroll = state.preview_scroll.saturating_add(3);
+                                    } else {
+                                        state.preview_scroll = state.preview_scroll.saturating_sub(3);
+                                    }
+                                } else if scroll_down {
+                                    state.select_next();
+                                } else {
+                                    state.select_prev();
+                                }
+                            }
+                            _ => {
+                                if !in_preview {
+                                    if scroll_down { app.select_next(); } else { app.select_prev(); }
+                                }
+                            }
+                        }
+                    }
+                }
+                Event::Key(key) if key.kind == KeyEventKind::Press => {
                     // Route the keypress to the correct handler depending on the top
                     // of screen_stack. PagesBrowse and CommentsBrowse delegate to their
                     // own state structs; empty stack or SpacesBrowse uses the App handler.
@@ -316,6 +345,7 @@ async fn run_app(
                         KeyAction::None => {}
                     }
                 }
+                _ => {}
             }
         } else {
             // Timeout — advance spinner frame and check 150ms debounce (D-19)

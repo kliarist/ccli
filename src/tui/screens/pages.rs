@@ -18,7 +18,7 @@ use ratatui::widgets::{
 use ratatui::Frame;
 
 use crate::api::page::{ContentType, Page, PageDetail};
-use crate::output::strip_storage_xml;
+use crate::output::render_xml_to_lines;
 use crate::tui::app::{AppState, PagesBrowseState, StatusStyle, SPINNER_FRAMES};
 
 /// Top-level render function for the Pages / Blog Posts browse view.
@@ -259,7 +259,10 @@ fn render_preview_pane(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
     let block = Block::default()
         .borders(Borders::NONE)
         .padding(Padding::new(1, 1, 0, 0));
-    let p = Paragraph::new(text).wrap(Wrap { trim: true }).block(block);
+    let p = Paragraph::new(text)
+        .wrap(Wrap { trim: true })
+        .scroll((state.preview_scroll, 0))
+        .block(block);
     f.render_widget(p, area);
 }
 
@@ -343,7 +346,7 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
     lines.push(Line::from(separator));
     lines.push(Line::from(""));
 
-    // Body — only when detail is cached and body.storage.value is present
+    // Body — styled lines from TUI renderer; no line cap (scroll with PgDn/PgUp)
     if let Some(d) = detail {
         if let Some(body) = d
             .body
@@ -351,14 +354,7 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
             .and_then(|b| b.storage.as_ref())
             .and_then(|s| s.value.as_ref())
         {
-            let stripped = strip_storage_xml(body);
-            for (count, body_line) in stripped.lines().enumerate() {
-                if count >= 200 {
-                    lines.push(Line::from(Span::styled("…", dim_style)));
-                    break;
-                }
-                lines.push(Line::from(body_line.to_string()));
-            }
+            lines.extend(render_xml_to_lines(body));
         }
     }
 
@@ -434,8 +430,10 @@ fn render_help_bar(f: &mut Frame, area: Rect) {
         Span::raw("  open   "),
         key("e"),
         Span::raw("  edit   "),
-        key("c"), // D-49: comments binding
+        key("c"),
         Span::raw("  comments   "),
+        key("PgDn/PgUp"),
+        Span::raw("  scroll   "),
         key("?"),
         Span::raw("  help   "),
         key("Esc"),
@@ -473,7 +471,7 @@ fn render_filter_overlay(f: &mut Frame, query: &str, list_area: Rect) {
 /// 50x16 Help modal — UI-SPEC Help Modal (Pages View) content.
 fn render_help_modal(f: &mut Frame, full_area: Rect) {
     let modal_w: u16 = 50;
-    let modal_h: u16 = 17;
+    let modal_h: u16 = 18;
     let x = full_area.x + (full_area.width.saturating_sub(modal_w)) / 2;
     let y = full_area.y + (full_area.height.saturating_sub(modal_h)) / 2;
     let area = Rect {
@@ -511,6 +509,7 @@ fn render_help_modal(f: &mut Frame, full_area: Rect) {
         row("↓ / j", "Move down"),
         row("g", "Jump to top"),
         row("G", "Jump to bottom"),
+        row("PgDn / PgUp", "Scroll preview"),
         Line::from(""),
         Line::from(Span::styled("Actions", bold)),
         row("Enter / o", "Open in browser"),
