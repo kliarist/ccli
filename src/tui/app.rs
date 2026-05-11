@@ -1058,7 +1058,11 @@ mod tests {
             query: "de".to_string(),
         };
         let action = app.handle_key(KeyCode::Char('q'));
-        assert_eq!(action, KeyAction::None, "q should type into filter, not quit");
+        assert_eq!(
+            action,
+            KeyAction::None,
+            "q should type into filter, not quit"
+        );
         assert!(
             matches!(&app.state, AppState::Filter { query } if query == "deq"),
             "q should append to the filter query"
@@ -1340,7 +1344,11 @@ mod tests {
             query: "x".to_string(),
         };
         let action = s.handle_key(KeyCode::Char('q'));
-        assert_eq!(action, KeyAction::None, "q should type into filter, not quit");
+        assert_eq!(
+            action,
+            KeyAction::None,
+            "q should type into filter, not quit"
+        );
         assert!(
             matches!(&s.browse_state, AppState::Filter { query } if query == "xq"),
             "q should append to the filter query"
