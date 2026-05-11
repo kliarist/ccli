@@ -192,8 +192,20 @@ fn render_list_pane(f: &mut Frame, app: &mut App, area: Rect) {
         // HighlightSpacing::Always reserves 2-char gutter, prevents layout shift (TUI-01)
         .highlight_spacing(HighlightSpacing::Always);
 
+    // When the filter overlay is visible it occupies 3 rows at the top of inner,
+    // so push the list down to prevent the overlay from covering the first item.
+    let list_area = if is_filter_active {
+        Rect {
+            y: inner.y + 3,
+            height: inner.height.saturating_sub(3),
+            ..inner
+        }
+    } else {
+        inner
+    };
+
     f.render_widget(block, area);
-    f.render_stateful_widget(list, inner, &mut app.list_state);
+    f.render_stateful_widget(list, list_area, &mut app.list_state);
 }
 
 /// Render the right preview pane showing selected space fields.

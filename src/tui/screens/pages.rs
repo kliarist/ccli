@@ -174,6 +174,26 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
         }
     }
 
+    let block = Block::default()
+        .borders(Borders::RIGHT)
+        .border_type(BorderType::Plain)
+        .border_style(border_style)
+        .padding(Padding::horizontal(1));
+
+    let inner = block.inner(area);
+
+    // When the filter overlay is visible it occupies 3 rows at the top of inner,
+    // so push the list down to prevent the overlay from covering the first item.
+    let list_area = if filter_active {
+        Rect {
+            y: inner.y + 3,
+            height: inner.height.saturating_sub(3),
+            ..inner
+        }
+    } else {
+        inner
+    };
+
     // List items: title only, truncated to pane inner width
     // 4 = 1 (RIGHT border) + 2 (HighlightSpacing gutter "> ") + 1 (padding)
     let inner_width = area.width.saturating_sub(4) as usize;
@@ -197,13 +217,6 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
         .collect();
 
     let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::RIGHT)
-                .border_type(BorderType::Plain)
-                .border_style(border_style)
-                .padding(Padding::horizontal(1)),
-        )
         .highlight_style(
             Style::default()
                 .bg(Color::Cyan)
@@ -213,7 +226,8 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
         .highlight_symbol("> ")
         .highlight_spacing(HighlightSpacing::Always);
 
-    f.render_stateful_widget(list, area, &mut state.list_state);
+    f.render_widget(block, area);
+    f.render_stateful_widget(list, list_area, &mut state.list_state);
 }
 
 /// Preview pane: metadata + stripped body. (D-42, D-43, D-44.)
@@ -249,41 +263,23 @@ fn render_preview_pane(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
     f.render_widget(p, area);
 }
 
-/// Build the preview pane Text — labels in yellow bold, values default, missing "—" DIM DarkGray.
+/// Build the preview pane Text — title prominent at top, compact metadata row, then body.
 fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Text<'a> {
     let mut lines: Vec<Line> = Vec::new();
 
-    let label_style = Style::default()
-        .fg(Color::Yellow)
-        .add_modifier(Modifier::BOLD);
-    let dim_style = Style::default()
-        .fg(Color::DarkGray)
-        .add_modifier(Modifier::DIM);
+    let label_style = Style::default().fg(Color::DarkGray);
+    let dim_style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM);
+    let sep_style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM);
+    let separator = Span::styled("─".repeat(64), sep_style);
 
-    fn field_line<'b>(
-        label: &'b str,
-        value: String,
-        label_style: Style,
-        dim_style: Style,
-    ) -> Line<'b> {
-        let label_padded = format!("{:<14}", label);
-        let value_span = if value.is_empty() || value == "—" {
-            Span::styled("—", dim_style)
-        } else {
-            Span::raw(value)
-        };
-        Line::from(vec![Span::styled(label_padded, label_style), value_span])
-    }
-
-    // Title — always from page (always available)
-    lines.push(field_line(
-        "Title:",
+    // Title — prominent, no label
+    lines.push(Line::from(Span::styled(
         page.title.clone(),
-        label_style,
-        dim_style,
-    ));
+        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+    )));
+    lines.push(Line::from(separator.clone()));
 
-    // Author / Version / Last Modified / Parent — from detail (if cached)
+    // Extract metadata
     let author = detail
         .and_then(|d| d.version.as_ref())
         .and_then(|v| v.by.as_ref())
@@ -298,6 +294,7 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         .and_then(|d| d.version.as_ref())
         .and_then(|v| v.when.clone())
         .or_else(|| page.version.as_ref().and_then(|v| v.when.clone()))
+        .map(|s| s.chars().take(10).collect::<String>()) // YYYY-MM-DD only
         .unwrap_or_default();
     let parent = detail
         .and_then(|d| d.ancestors.as_ref())
@@ -311,34 +308,39 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         })
         .unwrap_or_default();
 
-    // Author: LightBlue; Version: Green
-    let author_line = Line::from(vec![
-        Span::styled(format!("{:<14}", "Author:"), label_style),
-        if author.is_empty() {
-            Span::styled("—", dim_style)
-        } else {
-            Span::styled(author, Style::default().fg(Color::LightBlue))
-        },
-    ]);
-    let version_line = Line::from(vec![
-        Span::styled(format!("{:<14}", "Version:"), label_style),
-        if version.is_empty() {
-            Span::styled("—", dim_style)
-        } else {
-            Span::styled(version, Style::default().fg(Color::Green))
-        },
-    ]);
-    lines.push(author_line);
-    lines.push(version_line);
-    lines.push(field_line(
-        "Last Modified:",
-        last_modified,
-        label_style,
-        dim_style,
-    ));
-    lines.push(field_line("Parent:", parent, label_style, dim_style));
+    // Single compact metadata line: "thekliar  ·  v3  ·  2026-03-15  ·  ↳ Parent Page"
+    let dot = || Span::styled("  ·  ", label_style);
+    let mut meta: Vec<Span> = Vec::new();
+    if !author.is_empty() {
+        meta.push(Span::styled(author, Style::default().fg(Color::LightBlue)));
+    }
+    if !version.is_empty() {
+        if !meta.is_empty() {
+            meta.push(dot());
+        }
+        meta.push(Span::styled(
+            format!("v{}", version),
+            Style::default().fg(Color::Green),
+        ));
+    }
+    if !last_modified.is_empty() {
+        if !meta.is_empty() {
+            meta.push(dot());
+        }
+        meta.push(Span::styled(last_modified, label_style));
+    }
+    if !parent.is_empty() {
+        if !meta.is_empty() {
+            meta.push(dot());
+        }
+        meta.push(Span::styled("↳ ", label_style));
+        meta.push(Span::styled(parent, label_style));
+    }
+    if !meta.is_empty() {
+        lines.push(Line::from(meta));
+    }
 
-    // Blank separator
+    lines.push(Line::from(separator));
     lines.push(Line::from(""));
 
     // Body — only when detail is cached and body.storage.value is present
@@ -350,13 +352,9 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
             .and_then(|s| s.value.as_ref())
         {
             let stripped = strip_storage_xml(body);
-            // Cap to 200 lines per UI-SPEC
             for (count, body_line) in stripped.lines().enumerate() {
                 if count >= 200 {
-                    lines.push(Line::from(Span::styled(
-                        "…",
-                        Style::default().fg(Color::DarkGray),
-                    )));
+                    lines.push(Line::from(Span::styled("…", dim_style)));
                     break;
                 }
                 lines.push(Line::from(body_line.to_string()));

@@ -340,9 +340,7 @@ impl App {
             AppState::Filter { query } => {
                 let mut q = query.clone();
                 match key {
-                    KeyCode::Char('q') => return KeyAction::Quit, // q always quits (D-12)
                     KeyCode::Esc => {
-                        // D-12: Esc closes filter, restores full list
                         self.state = AppState::Browse;
                         self.apply_filter("");
                         return KeyAction::None;
@@ -352,16 +350,16 @@ impl App {
                         self.state = AppState::Filter { query: q.clone() };
                         self.apply_filter(&q);
                     }
-                    // Navigation works while filter is open (UI-SPEC)
-                    KeyCode::Char('j') | KeyCode::Down => {
-                        self.select_next();
+                    // Arrow keys navigate the list while the filter is open
+                    KeyCode::Down => self.select_next(),
+                    KeyCode::Up => self.select_prev(),
+                    // Enter drills into the selected space (same as Browse mode)
+                    KeyCode::Enter => {
+                        if let Some(key_str) = self.selected_key() {
+                            return KeyAction::DrillDown(key_str);
+                        }
                     }
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        self.select_prev();
-                    }
-                    // Enter is no-op (D-15: filter is real-time, no submit)
-                    KeyCode::Enter => {}
-                    // Any other printable char appends to query
+                    // All printable chars type into the filter — including j, k, q, g, G
                     KeyCode::Char(c) => {
                         q.push(c);
                         self.state = AppState::Filter { query: q.clone() };
@@ -702,7 +700,6 @@ impl PagesBrowseState {
             AppState::Filter { query } => {
                 let mut q = query.clone();
                 match key {
-                    KeyCode::Char('q') => return KeyAction::Quit,
                     KeyCode::Esc => {
                         self.browse_state = AppState::Browse;
                         self.apply_filter("");
@@ -713,13 +710,11 @@ impl PagesBrowseState {
                         self.browse_state = AppState::Filter { query: q.clone() };
                         self.apply_filter(&q);
                     }
-                    KeyCode::Char('j') | KeyCode::Down => {
-                        self.select_next();
-                    }
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        self.select_prev();
-                    }
+                    // Arrow keys navigate the list while the filter is open
+                    KeyCode::Down => self.select_next(),
+                    KeyCode::Up => self.select_prev(),
                     KeyCode::Enter => {} // D-15: real-time, no submit
+                    // All printable chars type into the filter — including j, k, q, g, G
                     KeyCode::Char(c) => {
                         q.push(c);
                         self.browse_state = AppState::Filter { query: q.clone() };
@@ -1033,13 +1028,27 @@ mod tests {
     }
 
     #[test]
-    fn handle_key_q_quits_from_filter_mode() {
+    fn handle_key_enter_in_filter_mode_drills_down_into_selected_space() {
+        let mut app = App::with_spaces(vec![make_space("DEV", "Development")]);
+        app.handle_key(KeyCode::Char('/'));
+        app.handle_key(KeyCode::Char('d'));
+        assert!(matches!(app.state, AppState::Filter { .. }));
+        let action = app.handle_key(KeyCode::Enter);
+        assert_eq!(action, KeyAction::DrillDown("DEV".to_string()));
+    }
+
+    #[test]
+    fn handle_key_q_in_filter_mode_types_into_query() {
         let mut app = App::with_spaces(vec![make_space("A", "Alpha")]);
         app.state = AppState::Filter {
             query: "de".to_string(),
         };
         let action = app.handle_key(KeyCode::Char('q'));
-        assert_eq!(action, KeyAction::Quit);
+        assert_eq!(action, KeyAction::None, "q should type into filter, not quit");
+        assert!(
+            matches!(&app.state, AppState::Filter { query } if query == "deq"),
+            "q should append to the filter query"
+        );
     }
 
     #[test]
@@ -1309,14 +1318,19 @@ mod tests {
     }
 
     #[test]
-    fn pages_state_handle_key_q_quits_from_any_state() {
+    fn pages_state_handle_key_q_quits_from_browse_and_modal_but_types_in_filter() {
         let mut s =
             PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
         assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit);
         s.browse_state = AppState::Filter {
             query: "x".to_string(),
         };
-        assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit);
+        let action = s.handle_key(KeyCode::Char('q'));
+        assert_eq!(action, KeyAction::None, "q should type into filter, not quit");
+        assert!(
+            matches!(&s.browse_state, AppState::Filter { query } if query == "xq"),
+            "q should append to the filter query"
+        );
         s.browse_state = AppState::Modal;
         assert_eq!(s.handle_key(KeyCode::Char('q')), KeyAction::Quit);
     }
