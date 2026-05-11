@@ -1,83 +1,102 @@
 # ccli
 
-Confluence Data Center CLI and terminal UI written in Rust, for when the browser tab count has become a moral issue.
+Confluence CLI and terminal UI written in Rust, for when the browser tab count has become a moral issue.
 
-`ccli` lets you browse spaces, pages, comments, and attachments from the terminal. It supports both command-oriented usage and an interactive TUI, so you can stay in the shell and pretend that is a lifestyle choice.
+`ccli` works with both **Confluence Data Center** and **Confluence Cloud**. It supports command-oriented usage and an interactive TUI, so you can browse, search, and edit Confluence content without leaving the terminal.
+
+## Installation
+
+Download a pre-built binary from the [latest release](https://github.com/kliarist/ccli/releases/latest):
+
+| Platform | File |
+|----------|------|
+| macOS Apple Silicon | `ccli-v*-aarch64-apple-darwin.tar.gz` |
+| macOS Intel | `ccli-v*-x86_64-apple-darwin.tar.gz` |
+| Linux x86\_64 (musl) | `ccli-v*-x86_64-unknown-linux-musl.tar.gz` |
+| Linux ARM64 (musl) | `ccli-v*-aarch64-unknown-linux-musl.tar.gz` |
+| Windows x86\_64 | `ccli-v*-x86_64-pc-windows-msvc.zip` |
+
+Or build from source:
+
+```bash
+cargo install --path .
+```
 
 ## Features
 
-- Interactive setup with connection validation via `ccli init`
-- Terminal UI launched by running bare `ccli`
+- Interactive TUI launched by running bare `ccli`
+- Fuzzy filtering in all list views
+- Mouse scroll support — scroll the list or preview pane independently
+- Styled page preview: formatted headings, bullet lists, code blocks
 - Space listing and browsing
 - Page listing, viewing, searching, creating, and editing
 - Blog post listing, viewing, creating, and editing
 - Plain-text comment authoring in `$EDITOR`
 - Attachment listing, download, and upload
-- Pretty table output for interactive terminals and TSV output for pipes, because the tool should know when it is being watched
-
-## Build
-
-```bash
-cargo build
-cargo build --release
-```
-
-## Test
-
-```bash
-cargo test
-cargo test -- --nocapture
-```
+- Pretty table output for interactive terminals; TSV for pipes
 
 ## Configuration
 
 First-time setup:
 
 ```bash
-cargo run -- init
-```
-
-or, after building:
-
-```bash
 ccli init
 ```
 
-`ccli init` prompts for:
+Prompts for a Confluence base URL and a Personal Access Token. The connection is validated before saving, so bad credentials do not get a permanent home.
 
-- Confluence base URL
-- Personal Access Token
-
-The CLI validates the connection before saving the config, so bad credentials do not get a permanent home.
-
-Config file location:
-
-```text
-~/.config/ccli/config.toml
-```
-
-Example:
+Config file: `~/.config/ccli/config.toml`
 
 ```toml
 url = "https://confluence.example.com"
 token = "AT-xxxxxxxxxxxx"
 ```
 
-Environment variable overrides are supported:
+Environment variable overrides (useful for CI and containers):
 
-- `CCLI_URL`
-- `CCLI_TOKEN`
-- `RUST_LOG`
+| Variable | Purpose |
+|----------|---------|
+| `CCLI_URL` | Confluence base URL |
+| `CCLI_TOKEN` | Personal Access Token |
+| `RUST_LOG` | Log level (e.g. `debug`) |
 
-If both `CCLI_URL` and `CCLI_TOKEN` are set, `ccli` can run without a config file. Handy for CI, containers, or committing fewer secrets to muscle memory.
+If both `CCLI_URL` and `CCLI_TOKEN` are set, `ccli` runs without a config file.
 
-## Usage
+## TUI
 
-Run the TUI:
+Launch with:
 
 ```bash
 ccli
 ```
+
+### Keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Navigate list |
+| `j` / `k` | Navigate list (vim-style, Browse mode only) |
+| `g` / `G` | Jump to top / bottom |
+| `/` | Open fuzzy filter |
+| `Esc` | Close filter / go back |
+| `Enter` | Open selected space or page |
+| `o` | Open in browser |
+| `e` | Edit page in `$EDITOR` |
+| `c` | View comments |
+| `PgDn` / `PgUp` | Scroll page preview |
+| `?` | Show key bindings |
+| `q` | Quit |
+
+### Mouse
+
+- Scroll on the **left pane** to move the list selection up and down
+- Scroll on the **right pane** to scroll the page preview
+
+### Filter
+
+Press `/` to open the fuzzy filter. All printable characters type into the filter query. Use `↑`/`↓` arrow keys to navigate the filtered list, and `Enter` to open the selected item. `Esc` closes the filter and restores the full list.
+
+## CLI Commands
 
 Top-level help:
 
@@ -85,123 +104,99 @@ Top-level help:
 ccli --help
 ```
 
-### Common Commands
-
-Initialize config:
-
-```bash
-ccli init
-```
-
-List spaces:
+### Spaces
 
 ```bash
 ccli space list
 ```
 
-List pages in a space:
+### Pages
 
 ```bash
+# List pages in a space
 ccli page list DEV
-```
 
-View a page as plain text:
-
-```bash
+# View page content as plain text
 ccli page view 123456
-```
 
-Search pages with CQL:
-
-```bash
+# Search with CQL
 ccli page search "type=page AND space=DEV AND text~deploy" --limit 25
-```
 
-Create a page:
-
-```bash
+# Create a page (opens $EDITOR)
 ccli page create --space DEV --title "Release Notes"
-```
 
-Edit a page in `$EDITOR`:
-
-```bash
+# Edit a page (opens $EDITOR)
 ccli page edit 123456
 ```
 
-Create a blog post:
+### Blog Posts
 
 ```bash
+ccli blog list DEV
 ccli blog create --space DEV --title "Weekly Update"
+ccli blog edit 123456
 ```
 
-Add a comment:
+### Comments
 
 ```bash
+# Add a comment (opens $EDITOR)
 ccli comment add 123456
 ```
 
-List attachments:
+### Attachments
 
 ```bash
 ccli attachment list 123456
-```
-
-Download an attachment:
-
-```bash
 ccli attachment get 123456 design.pdf
-```
-
-Upload an attachment:
-
-```bash
 ccli attachment add 123456 ./design.pdf
 ```
 
 ## Output Modes
 
-Global output flags apply to supported tabular commands:
+Global flags apply to all tabular commands:
 
 ```bash
 ccli --plain --no-headers --columns key,name space list
 ```
 
-- Interactive terminal output defaults to a formatted table
-- Piped or redirected output defaults to TSV
-- `--plain` forces TSV
-- `--no-headers` removes the header row
-- `--columns` filters and reorders columns
-
-Example:
-
-```bash
-ccli page list DEV --plain --columns title,id
-```
+| Flag | Effect |
+|------|--------|
+| _(none)_ | Formatted table on TTY, TSV when piped |
+| `--plain` | Force TSV |
+| `--no-headers` | Suppress header row |
+| `--columns a,b` | Show only these columns, in this order |
 
 ## Editor Integration
 
-Some commands open your editor:
+The following commands open `$EDITOR` (falls back to `$VISUAL`, then `vi`):
 
-- `ccli page create`
-- `ccli page edit`
-- `ccli blog create`
-- `ccli blog edit`
+- `ccli page create` / `ccli page edit`
+- `ccli blog create` / `ccli blog edit`
 - `ccli comment add`
 
-`ccli` uses `$EDITOR`, then `$VISUAL`, and falls back to `vi`.
+Pages and blog posts edit Confluence storage XML directly. Comments are written as plain text and converted to storage format automatically.
 
-Page and blog editing use Confluence storage XML. Comment editing uses plain text and converts paragraphs to Confluence storage format automatically.
+## Build & Test
 
-## Development Notes
+```bash
+cargo build --release
+cargo test
+```
 
-- Runtime: async Rust with `tokio`
-- HTTP client: `reqwest`
-- CLI parsing: `clap`
-- TUI: `ratatui` + `crossterm`
+## Tech Stack
+
+| Concern | Crate |
+|---------|-------|
+| Async runtime | `tokio` |
+| HTTP client | `reqwest` |
+| CLI parsing | `clap` |
+| TUI | `ratatui` + `crossterm` |
+| Fuzzy matching | `nucleo-matcher` |
+| XML parsing | `quick-xml` |
 
 ## License
 
-MIT. See [LICENSE](/Users/thekliar/Dev/projects/5soft/confluence-cli/LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 <a href='https://ko-fi.com/V7V81Z4ZAU' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
