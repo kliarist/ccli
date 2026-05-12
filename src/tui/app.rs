@@ -900,8 +900,9 @@ impl CommentsBrowseState {
                 }
                 _ => KeyAction::None,
             },
-            // No Filtering / overlay states for CommentsBrowse v1.
-            _ => KeyAction::None,
+            // No Filter or Modal states for CommentsBrowse v1.
+            // Explicit arms so adding a new AppState variant causes a compile error here.
+            AppState::Filter { .. } | AppState::Modal => KeyAction::None,
         }
     }
 }

@@ -14,7 +14,7 @@ use anyhow::Context;
 
 use crate::api::comment::add_comment;
 use crate::api::{AppError, Client};
-use crate::cli::{Cli, CommentArgs, CommentCommands};
+use crate::cli::{sanitize_id, Cli, CommentArgs, CommentCommands};
 use crate::config;
 
 /// Top-level dispatcher for `ccli comment` subcommands.
@@ -63,18 +63,6 @@ async fn handle_add(page_id: &str) -> anyhow::Result<()> {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/// Validate that `s` is a non-empty digit string. T-03-14.
-fn sanitize_id(s: &str) -> Option<String> {
-    if s.is_empty() {
-        return None;
-    }
-    if s.chars().all(|c| c.is_ascii_digit()) {
-        Some(s.to_string())
-    } else {
-        None
-    }
-}
 
 /// Launch `$EDITOR` (or `$VISUAL`, or `vi`) — same pattern as src/cli/page.rs.
 fn launch_editor(path: &std::path::Path) -> anyhow::Result<()> {
@@ -190,12 +178,5 @@ mod tests {
             wrap_plain_text_to_storage_xml("line one\nline two").unwrap(),
             "<p>line one line two</p>"
         );
-    }
-
-    #[test]
-    fn sanitize_id_rejects_path_traversal_inputs() {
-        assert_eq!(sanitize_id("../etc"), None);
-        assert_eq!(sanitize_id(""), None);
-        assert_eq!(sanitize_id("12345"), Some("12345".to_string()));
     }
 }

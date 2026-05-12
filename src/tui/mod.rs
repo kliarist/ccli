@@ -234,7 +234,12 @@ async fn run_app(
         if event::poll(Duration::from_millis(100))? {
             match event::read()? {
                 Event::Mouse(mouse) => {
-                    let size = terminal.size().unwrap_or_default();
+                    // Fall back to 80×24 on error rather than 0×0, which would make
+                    // split_col = 0 and misroute all scroll events to the preview pane.
+                    let size = terminal.size().unwrap_or(ratatui::layout::Size {
+                        width: 80,
+                        height: 24,
+                    });
                     // Body split: left 40% = list pane, right 60% = preview pane
                     let split_col = size.width * 40 / 100;
                     let in_preview = mouse.column >= split_col;

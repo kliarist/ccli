@@ -22,7 +22,7 @@ use crate::api::page::{
     create_page, get_page_detail, list_all_pages, update_page, ContentType, PageDetail,
 };
 use crate::api::{AppError, Client};
-use crate::cli::{Cli, PageArgs, PageCommands};
+use crate::cli::{sanitize_id, Cli, PageArgs, PageCommands};
 use crate::config;
 use crate::output::{strip_storage_xml, OutputFormatter};
 
@@ -257,19 +257,6 @@ pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> a
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/// Validate that `s` is a non-empty digit string. Returns Some(s) when valid,
-/// None when not. Prevents path traversal in /tmp/ccli-edit-{id}.xml.
-fn sanitize_id(s: &str) -> Option<String> {
-    if s.is_empty() {
-        return None;
-    }
-    if s.chars().all(|c| c.is_ascii_digit()) {
-        Some(s.to_string())
-    } else {
-        None
-    }
-}
 
 /// Extract the storage XML body string from a PageDetail. Returns "" if absent
 /// (caller passes the result directly to strip_storage_xml which handles "").
