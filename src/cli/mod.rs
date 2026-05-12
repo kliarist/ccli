@@ -202,6 +202,20 @@ pub enum AttachmentCommands {
     },
 }
 
+/// Validate that `s` is a non-empty digit string. Returns `Some(owned)` when valid, `None` when not.
+///
+/// Used by CLI handlers to prevent path traversal in `/tmp/ccli-*-{id}.*` paths (T-03-14).
+pub(crate) fn sanitize_id(s: &str) -> Option<String> {
+    if s.is_empty() {
+        return None;
+    }
+    if s.chars().all(|c| c.is_ascii_digit()) {
+        Some(s.to_string())
+    } else {
+        None
+    }
+}
+
 impl Cli {
     /// Build an OutputConfig from the parsed global flags.
     /// Called by command handlers that emit tabular output.
@@ -218,6 +232,20 @@ impl Cli {
 mod tests {
     use super::*;
     use clap::Parser;
+
+    #[test]
+    fn sanitize_id_accepts_digit_strings() {
+        assert_eq!(sanitize_id("12345"), Some("12345".to_string()));
+        assert_eq!(sanitize_id("0"), Some("0".to_string()));
+    }
+
+    #[test]
+    fn sanitize_id_rejects_non_digits_and_empty() {
+        assert_eq!(sanitize_id(""), None);
+        assert_eq!(sanitize_id("abc"), None);
+        assert_eq!(sanitize_id("../etc"), None);
+        assert_eq!(sanitize_id("12 34"), None);
+    }
 
     #[test]
     fn parses_init_subcommand() {

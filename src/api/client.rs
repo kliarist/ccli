@@ -169,7 +169,9 @@ pub async fn test_connection(
     match resp.status().as_u16() {
         200 => {
             // W-04: treat empty/missing displayName as auth failure (Pitfall 2 / CONFSERVER-87540).
-            let body: serde_json::Value = resp.json().await.unwrap_or_default();
+            let body: serde_json::Value = resp.json().await.map_err(|e| {
+                AppError::Api(format!("Failed to parse /user/current response: {}", e))
+            })?;
             match body["displayName"].as_str() {
                 Some(name) if !name.is_empty() => Ok(name.to_string()),
                 _ => Err(AppError::Auth(
@@ -346,8 +348,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_connection_returns_auth_error_on_200_with_empty_body() {
-        // W-04: Pitfall 2 (CONFSERVER-87540) — 200 + empty body must not silently succeed.
+    async fn test_connection_returns_api_error_on_200_with_empty_body() {
+        // W-04: Pitfall 2 (CONFSERVER-87540) — 200 + empty body (e.g. WAF/captcha page) must
+        // surface as AppError::Api with a parse-error message, not silently succeed or produce
+        // a misleading auth error.
         let server = MockServer::start();
         let _m = server.mock(|when, then| {
             when.method(GET).path("/rest/api/user/current");
@@ -355,8 +359,8 @@ mod tests {
         });
         let result = test_connection(&server.base_url(), "invalid-tok", None).await;
         match result {
-            Err(AppError::Auth(_)) => {}
-            other => panic!("expected AppError::Auth on empty 200 body, got {:?}", other),
+            Err(AppError::Api(_)) => {}
+            other => panic!("expected AppError::Api on empty 200 body, got {:?}", other),
         }
     }
 

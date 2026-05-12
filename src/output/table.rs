@@ -7,13 +7,7 @@
 use comfy_table::presets::UTF8_FULL_CONDENSED;
 use comfy_table::{ContentArrangement, Table};
 
-/// Render headers + rows as an aligned table to stdout.
-#[allow(dead_code)]
-pub fn render(headers: &[String], col_indices: &[usize], rows: &[Vec<String>], no_headers: bool) {
-    println!("{}", render_string(headers, col_indices, rows, no_headers));
-}
-
-/// Testable variant of `render` returning the rendered table as a String.
+/// Render headers + rows as an aligned table; returns the rendered String.
 pub(crate) fn render_string(
     headers: &[String],
     col_indices: &[usize],

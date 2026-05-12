@@ -16,7 +16,7 @@ use anyhow::Context;
 
 use crate::api::attachment::{add_attachment, get_attachment, list_attachments, Attachment};
 use crate::api::{AppError, Client};
-use crate::cli::{AttachmentArgs, AttachmentCommands, Cli};
+use crate::cli::{sanitize_id, AttachmentArgs, AttachmentCommands, Cli};
 use crate::config;
 use crate::output::OutputFormatter;
 
@@ -142,18 +142,6 @@ async fn handle_add(page_id: &str, file_path: &str) -> anyhow::Result<()> {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/// Digits-only validation. T-03-14.
-fn sanitize_id(s: &str) -> Option<String> {
-    if s.is_empty() {
-        return None;
-    }
-    if s.chars().all(|c| c.is_ascii_digit()) {
-        Some(s.to_string())
-    } else {
-        None
-    }
-}
-
 /// Human-readable file size. Boundary 1024.
 /// <1024 → "N B"; <1MiB → "N KB"; else "N MB". Round to nearest.
 pub(crate) fn human_size(bytes: u64) -> String {
@@ -213,13 +201,6 @@ mod tests {
     fn human_size_rounds_to_nearest() {
         assert_eq!(human_size(1500), "1 KB"); // 1.46 → 1
         assert_eq!(human_size(1600), "2 KB"); // 1.56 → 2
-    }
-
-    #[test]
-    fn sanitize_id_rejects_non_digits() {
-        assert_eq!(sanitize_id("abc"), None);
-        assert_eq!(sanitize_id(""), None);
-        assert_eq!(sanitize_id("12345"), Some("12345".to_string()));
     }
 
     #[test]

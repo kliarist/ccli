@@ -7,19 +7,6 @@
 
 use std::io::{self, Write};
 
-/// Render headers + rows as tab-separated values to stdout.
-///
-/// `col_indices` selects which columns of each row to print, in the order listed.
-/// `headers` is already filtered/ordered to match `col_indices` by the caller
-/// (see `OutputFormatter::resolve_columns`).
-#[allow(dead_code)]
-pub fn render(headers: &[String], col_indices: &[usize], rows: &[Vec<String>], no_headers: bool) {
-    let stdout = io::stdout();
-    let mut handle = stdout.lock();
-    // Errors writing to stdout are not actionable in a CLI; ignore the Result.
-    let _ = render_to(&mut handle, headers, col_indices, rows, no_headers);
-}
-
 /// Escape tab and newline characters in a TSV cell value so that pipeline
 /// consumers (`awk -F'\t'`, `cut -f`, `sort -t$'\t'`) can always parse the
 /// output correctly.  Embedded `\t` becomes the two-character sequence `\t`,
