@@ -1,4 +1,4 @@
-# ccli 🦀
+# ccli
 
 Confluence CLI and terminal UI written in Rust, for when the browser tab count has become a moral issue.
 
