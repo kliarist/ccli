@@ -11,6 +11,7 @@
 use anyhow::Context;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Password};
+use is_terminal::IsTerminal;
 
 use crate::api;
 use crate::cli::Cli;
@@ -98,7 +99,11 @@ pub async fn run(_cli: &Cli) -> anyhow::Result<()> {
     };
     config::save(&cfg).context("Failed to save config")?;
 
-    println!("Connected as {} — configuration saved.", display_name);
+    if std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none() {
+        println!("\x1b[1;32mConnected as {}\x1b[0m — configuration saved.", display_name);
+    } else {
+        println!("Connected as {} — configuration saved.", display_name);
+    }
     Ok(())
 }
 
@@ -127,14 +132,13 @@ pub(crate) fn validate_url(s: &str) -> Result<(), &'static str> {
 ///   ""                   -> ""
 ///   "ABCDEF"             -> "AB*****DEF"
 pub(crate) fn mask_pat_hint(token: &str) -> String {
-    let len = token.chars().count();
+    let chars: Vec<char> = token.chars().collect();
+    let len = chars.len();
     if len <= 5 {
         return "*".repeat(len);
     }
-    // For len >= 6 the slicing is safe: take leading 2 bytes + trailing 3 bytes.
-    // PATs are ASCII, so byte indexing aligns with char indexing.
-    let prefix = &token[..2];
-    let suffix = &token[token.len() - 3..];
+    let prefix: String = chars[..2].iter().collect();
+    let suffix: String = chars[len - 3..].iter().collect();
     format!("{}*****{}", prefix, suffix)
 }
 
