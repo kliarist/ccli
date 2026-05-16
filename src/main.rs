@@ -1,3 +1,4 @@
+use is_terminal::IsTerminal;
 use tracing_subscriber::EnvFilter;
 
 mod api;
@@ -32,8 +33,22 @@ async fn main() {
     }
 }
 
+fn cli_styles() -> clap::builder::Styles {
+    use clap::builder::styling::{AnsiColor, Effects, Styles};
+    Styles::styled()
+        .header(AnsiColor::Cyan.on_default() | Effects::BOLD)
+        .usage(AnsiColor::Cyan.on_default() | Effects::BOLD)
+        .literal(AnsiColor::Yellow.on_default() | Effects::BOLD)
+        .placeholder(AnsiColor::Green.on_default())
+        .error(AnsiColor::Red.on_default() | Effects::BOLD)
+        .valid(AnsiColor::Cyan.on_default() | Effects::BOLD)
+        .invalid(AnsiColor::Red.on_default() | Effects::BOLD)
+}
+
 async fn run() -> anyhow::Result<()> {
-    let cli = <Cli as clap::Parser>::parse();
+    use clap::{CommandFactory, FromArgMatches};
+    let matches = Cli::command().styles(cli_styles()).get_matches();
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
     match cli.command {
         Some(Commands::Init) => cli::init::run(&cli).await,
@@ -62,11 +77,16 @@ fn hint_for(err: &AppError) -> &'static str {
 }
 
 /// Two-line stderr error format per D-04:
-///   line 1: `Error: <message>`
-///   line 2: remediation hint (from hint_for)
+///   line 1: `Error: <message>`  (red bold prefix when stderr is a terminal)
+///   line 2: remediation hint   (yellow when stderr is a terminal)
 fn handle_error(err: &AppError) {
-    eprintln!("Error: {}", err);
-    eprintln!("{}", hint_for(err));
+    if std::io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none() {
+        eprintln!("\x1b[1;31mError:\x1b[0m {}", err);
+        eprintln!("\x1b[33m{}\x1b[0m", hint_for(err));
+    } else {
+        eprintln!("Error: {}", err);
+        eprintln!("{}", hint_for(err));
+    }
 }
 
 #[cfg(test)]
