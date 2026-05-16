@@ -161,6 +161,11 @@ pub struct CommentArgs {
 /// Subcommands under `ccli comment`.
 #[derive(Subcommand, Debug)]
 pub enum CommentCommands {
+    /// List comments on a page as a table.
+    List {
+        /// Page ID (numeric string).
+        page_id: String,
+    },
     /// Open $EDITOR to write and post a plain-text comment (D-51, D-52, D-53).
     Add {
         /// Page ID (numeric string).

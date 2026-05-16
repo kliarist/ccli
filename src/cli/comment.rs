@@ -12,16 +12,41 @@
 
 use anyhow::Context;
 
-use crate::api::comment::add_comment;
+use crate::api::comment::{add_comment, list_comments};
 use crate::api::{AppError, Client};
 use crate::cli::{sanitize_id, Cli, CommentArgs, CommentCommands};
 use crate::config;
+use crate::output::{strip_storage_xml, OutputFormatter};
 
 /// Top-level dispatcher for `ccli comment` subcommands.
-pub async fn run(_cli: &Cli, args: &CommentArgs) -> anyhow::Result<()> {
+pub async fn run(cli: &Cli, args: &CommentArgs) -> anyhow::Result<()> {
     match &args.command {
+        CommentCommands::List { page_id } => handle_list(cli, page_id).await,
         CommentCommands::Add { page_id } => handle_add(page_id).await,
     }
+}
+
+/// `ccli comment list <PAGE-ID>` — print all comments as a table.
+async fn handle_list(cli: &Cli, page_id: &str) -> anyhow::Result<()> {
+    let id = sanitize_id(page_id)
+        .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id)))?;
+
+    let cfg = config::load_or_error()
+        .map_err(anyhow::Error::from)
+        .context("No configuration found. Run 'ccli init' to configure.")?;
+    let client = Client::new(&cfg)?;
+
+    let comments = list_comments(&client, &id)
+        .await
+        .map_err(anyhow::Error::from)
+        .context("Failed to fetch comments")?;
+
+    let formatter = OutputFormatter::new(cli.output_config());
+    let headers = &["ID", "Author", "Date", "Preview"];
+    let rows = build_list_rows(&comments);
+    formatter.print(headers, &rows);
+
+    Ok(())
 }
 
 /// `ccli comment add <PAGE-ID>` — open $EDITOR, wrap, POST.
@@ -130,9 +155,71 @@ fn escape_xml(s: &str) -> String {
         .replace('>', "&gt;")
 }
 
+pub(crate) fn build_list_rows(comments: &[crate::api::comment::Comment]) -> Vec<Vec<String>> {
+    comments.iter().map(comment_to_row).collect()
+}
+
+fn comment_to_row(c: &crate::api::comment::Comment) -> Vec<String> {
+    let author = c
+        .version
+        .as_ref()
+        .and_then(|v| v.by.as_ref())
+        .and_then(|a| a.display_name.clone())
+        .unwrap_or_default();
+    let date = c
+        .version
+        .as_ref()
+        .and_then(|v| v.when.as_deref())
+        .and_then(|w| w.get(..10))
+        .unwrap_or_default()
+        .to_string();
+    let preview = c
+        .body
+        .as_ref()
+        .and_then(|b| b.storage.as_ref())
+        .and_then(|s| s.value.as_deref())
+        .map(build_preview)
+        .unwrap_or_default();
+    vec![c.id.clone(), author, date, preview]
+}
+
+fn build_preview(xml: &str) -> String {
+    let text = strip_storage_xml(xml);
+    let first = text.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    if first.chars().count() > 80 {
+        format!("{}…", first.chars().take(79).collect::<String>())
+    } else {
+        first.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::comment::{
+        Comment, CommentAuthor, CommentBody, CommentLinks, CommentVersion, StorageBody,
+    };
+
+    fn make_comment(id: &str, author: Option<&str>, when: Option<&str>, body: Option<&str>) -> Comment {
+        Comment {
+            id: id.to_string(),
+            title: String::new(),
+            version: Some(CommentVersion {
+                number: 1,
+                when: when.map(ToString::to_string),
+                by: Some(CommentAuthor {
+                    display_name: author.map(ToString::to_string),
+                }),
+            }),
+            body: Some(CommentBody {
+                storage: Some(StorageBody {
+                    value: body.map(ToString::to_string),
+                    representation: Some("storage".to_string()),
+                }),
+            }),
+            links: CommentLinks::default(),
+        }
+    }
 
     #[test]
     fn wrap_plain_text_single_paragraph() {
@@ -178,5 +265,61 @@ mod tests {
             wrap_plain_text_to_storage_xml("line one\nline two").unwrap(),
             "<p>line one line two</p>"
         );
+    }
+
+    #[test]
+    fn build_list_rows_formats_author_date_and_preview() {
+        let comments = vec![make_comment(
+            "42",
+            Some("Alice"),
+            Some("2026-05-01T12:34:56Z"),
+            Some("<p>Hello</p><p>World</p>"),
+        )];
+
+        let rows = build_list_rows(&comments);
+
+        assert_eq!(rows, vec![vec![
+            "42".to_string(),
+            "Alice".to_string(),
+            "2026-05-01".to_string(),
+            "Hello".to_string(),
+        ]]);
+    }
+
+    #[test]
+    fn build_list_rows_uses_defaults_for_missing_comment_fields() {
+        let comments = vec![Comment {
+            id: "7".to_string(),
+            title: String::new(),
+            version: None,
+            body: None,
+            links: CommentLinks::default(),
+        }];
+
+        let rows = build_list_rows(&comments);
+
+        assert_eq!(rows, vec![vec![
+            "7".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+        ]]);
+    }
+
+    #[test]
+    fn build_list_rows_truncates_long_preview_to_80_chars() {
+        let long_text = "x".repeat(100);
+        let comments = vec![make_comment(
+            "9",
+            Some("Bob"),
+            Some("2026-05-01T00:00:00Z"),
+            Some(&format!("<p>{}</p>", long_text)),
+        )];
+
+        let rows = build_list_rows(&comments);
+        let preview = &rows[0][3];
+
+        assert_eq!(preview.chars().count(), 80);
+        assert!(preview.ends_with('…'));
     }
 }
