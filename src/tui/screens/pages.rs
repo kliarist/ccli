@@ -1,13 +1,4 @@
 //! Pages and Blog Posts browse view renderer — pure drawing functions for the TUI.
-//!
-//! Requirements covered: PAGE-01, PAGE-03, PAGE-04, BLOG-01.
-//! All functions are pure: no I/O, no state mutation. `&mut PagesBrowseState`
-//! is required only because Ratatui's `render_stateful_widget` mutates ListState.
-//!
-//! Visual contract source: 03-UI-SPEC.md
-//! Locked decisions implemented: D-31, D-37, D-41, D-42, D-43, D-44.
-//!
-//! Wired into the event loop in src/tui/mod.rs (Plan 06).
 
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -23,35 +14,30 @@ use crate::tui::app::{AppState, PagesBrowseState, StatusStyle, SPINNER_FRAMES};
 
 /// Top-level render function for the Pages / Blog Posts browse view.
 pub fn render_pages(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
+    let has_filter = !state.active_filter.is_empty() || matches!(state.browse_state, AppState::Filtering { .. });
+    let filter_height: u16 = if has_filter { 3 } else { 0 };
+
     let vertical = Layout::vertical([
-        Constraint::Length(3),
-        Constraint::Min(0),
-        Constraint::Length(1),
-        Constraint::Length(1),
+        Constraint::Length(3),              // title block (with shortcuts inside)
+        Constraint::Min(0),                 // main body
+        Constraint::Length(filter_height),  // filter panel (only when active)
+        Constraint::Length(1),              // status bar
     ]);
-    let [title_area, body_area, status_area, help_area] = vertical.areas(area);
+    let [title_area, body_area, filter_area, status_area] = vertical.areas(area);
 
     render_title(f, state, title_area);
     render_body(f, state, body_area);
+    if has_filter {
+        render_filter_panel(f, state, filter_area);
+    }
     render_status_bar(f, state, status_area);
-    render_help_bar(f, help_area);
 
-    match &state.browse_state {
-        AppState::Filter { query } => {
-            let q = query.clone();
-            let horizontal =
-                Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)]);
-            let [list_area, _] = horizontal.areas(body_area);
-            render_filter_overlay(f, &q, list_area);
-        }
-        AppState::Modal => {
-            render_help_modal(f, area);
-        }
-        _ => {}
+    if matches!(&state.browse_state, AppState::Modal) {
+        render_help_modal(f, area);
     }
 }
 
-/// Title block: bold left "Pages — {SPACE-KEY}" + dim right "{N} total" / "Loading…".
+/// Title block: rounded cyan border with screen name + shortcuts row inside.
 fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
     let kind_label = match state.content_type {
         ContentType::Page => "Pages",
@@ -59,27 +45,30 @@ fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
     };
     let subtitle = match &state.browse_state {
         AppState::Loading => "Loading…".to_string(),
-        AppState::Browse | AppState::Modal => format!("{} total", state.pages.len()),
-        AppState::Filter { .. } => format!(
+        AppState::Browse | AppState::Modal => {
+            if !state.active_filter.is_empty() {
+                format!("{} total / {} shown", state.pages.len(), state.visible_count())
+            } else {
+                format!("{} total", state.pages.len())
+            }
+        }
+        AppState::Filtering { .. } => format!(
             "{} total / {} shown",
             state.pages.len(),
             state.visible_count()
         ),
     };
+
     let left_title = Line::from(vec![
         Span::raw(" "),
         Span::styled(
             kind_label,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" — ", Style::default().fg(Color::DarkGray)),
         Span::styled(
             state.space_key.clone(),
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         ),
         Span::raw(" "),
     ])
@@ -89,31 +78,63 @@ fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
         Style::default().fg(Color::DarkGray),
     ))
     .right_aligned();
+
     let block = Block::default()
-        .borders(Borders::BOTTOM)
-        .border_type(BorderType::Plain)
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(Color::Cyan))
         .title(left_title)
         .title(right_title);
+
+    let inner = block.inner(area);
     f.render_widget(block, area);
+
+    // Shortcuts row — k9s-style <key> tags
+    let kb = |k: &'static str| {
+        Span::styled(
+            format!("<{}>", k),
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )
+    };
+    let desc = |d: &'static str| {
+        Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray))
+    };
+    let shortcuts = Line::from(vec![
+        kb("/"),
+        desc("Filter"),
+        kb("Enter/o"),
+        desc("Open"),
+        kb("e"),
+        desc("Edit"),
+        kb("c"),
+        desc("Comments"),
+        kb("g/G"),
+        desc("Top/Bot"),
+        kb("?"),
+        desc("Help"),
+        kb("Esc"),
+        desc("Back"),
+    ]);
+    f.render_widget(Paragraph::new(shortcuts), inner);
 }
 
-/// Body: horizontal 40/60 split → list pane + preview pane.
+/// Body: single rounded cyan outer box, list and preview panes inside.
 fn render_body(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
+    let outer = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(Color::Cyan));
+    let inner = outer.inner(area);
+    f.render_widget(outer, area);
+
     let horizontal = Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)]);
-    let [list_area, preview_area] = horizontal.areas(area);
+    let [list_area, preview_area] = horizontal.areas(inner);
     render_list_pane(f, state, list_area);
     render_preview_pane(f, state, preview_area);
 }
 
 /// List pane: page titles only (D-44), truncated with "…" if longer than pane width.
 fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
-    let filter_active = matches!(state.browse_state, AppState::Filter { .. });
-    let border_style = if filter_active {
-        Style::default().fg(Color::Cyan)
-    } else {
-        Style::default()
-    };
-
     let kind_plural = match state.content_type {
         ContentType::Page => "pages",
         ContentType::BlogPost => "blog posts",
@@ -123,6 +144,7 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
         let block = Block::default()
             .borders(Borders::RIGHT)
             .border_type(BorderType::Plain)
+            .border_style(Style::default().fg(Color::DarkGray))
             .padding(Padding::horizontal(1));
         let p = Paragraph::new(Span::styled(
             "Loading…",
@@ -141,6 +163,7 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
         let block = Block::default()
             .borders(Borders::RIGHT)
             .border_type(BorderType::Plain)
+            .border_style(Style::default().fg(Color::DarkGray))
             .padding(Padding::horizontal(1));
         let p = Paragraph::new(Span::styled(
             msg,
@@ -154,48 +177,37 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
         return;
     }
     if state.filtered_indices.is_empty() {
-        if let AppState::Filter { query } = &state.browse_state {
-            let msg = format!("No matches for \"{}\"", query);
-            let block = Block::default()
-                .borders(Borders::RIGHT)
-                .border_type(BorderType::Plain)
-                .border_style(border_style)
-                .padding(Padding::horizontal(1));
-            let p = Paragraph::new(Span::styled(
-                msg,
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::DIM),
-            ))
+        let active_query = match &state.browse_state {
+            AppState::Filtering { query } => query.as_str(),
+            _ => state.active_filter.as_str(),
+        };
+        let msg = if !active_query.is_empty() {
+            format!("No matches for \"{}\"", active_query)
+        } else {
+            let kind = match state.content_type { ContentType::Page => "pages", ContentType::BlogPost => "blog posts" };
+            format!("No {}", kind)
+        };
+        let block = Block::default()
+            .borders(Borders::RIGHT)
+            .border_type(BorderType::Plain)
+            .border_style(Style::default().fg(Color::DarkGray))
+            .padding(Padding::horizontal(1));
+        let p = Paragraph::new(Span::styled(msg, Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)))
             .alignment(Alignment::Center)
             .block(block);
-            f.render_widget(p, area);
-            return;
-        }
+        f.render_widget(p, area);
+        return;
     }
 
     let block = Block::default()
         .borders(Borders::RIGHT)
         .border_type(BorderType::Plain)
-        .border_style(border_style)
+        .border_style(Style::default().fg(Color::DarkGray))
         .padding(Padding::horizontal(1));
 
     let inner = block.inner(area);
+    let list_area = inner;
 
-    // When the filter overlay is visible it occupies 3 rows at the top of inner,
-    // so push the list down to prevent the overlay from covering the first item.
-    let list_area = if filter_active {
-        Rect {
-            y: inner.y + 3,
-            height: inner.height.saturating_sub(3),
-            ..inner
-        }
-    } else {
-        inner
-    };
-
-    // List items: title only, truncated to pane inner width
-    // 4 = 1 (RIGHT border) + 2 (HighlightSpacing gutter "> ") + 1 (padding)
     let inner_width = area.width.saturating_sub(4) as usize;
     let items: Vec<ListItem> = state
         .filtered_indices
@@ -276,7 +288,6 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         .add_modifier(Modifier::DIM);
     let separator = Span::styled("─".repeat(64), sep_style);
 
-    // Title — prominent, no label
     lines.push(Line::from(Span::styled(
         page.title.clone(),
         Style::default()
@@ -285,7 +296,6 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
     )));
     lines.push(Line::from(separator.clone()));
 
-    // Extract metadata
     let author = detail
         .and_then(|d| d.version.as_ref())
         .and_then(|v| v.by.as_ref())
@@ -300,7 +310,7 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         .and_then(|d| d.version.as_ref())
         .and_then(|v| v.when.clone())
         .or_else(|| page.version.as_ref().and_then(|v| v.when.clone()))
-        .map(|s| s.chars().take(10).collect::<String>()) // YYYY-MM-DD only
+        .map(|s| s.chars().take(10).collect::<String>())
         .unwrap_or_default();
     let parent = detail
         .and_then(|d| d.ancestors.as_ref())
@@ -314,31 +324,21 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         })
         .unwrap_or_default();
 
-    // Single compact metadata line: "thekliar  ·  v3  ·  2026-03-15  ·  ↳ Parent Page"
     let dot = || Span::styled("  ·  ", label_style);
     let mut meta: Vec<Span> = Vec::new();
     if !author.is_empty() {
         meta.push(Span::styled(author, Style::default().fg(Color::LightBlue)));
     }
     if !version.is_empty() {
-        if !meta.is_empty() {
-            meta.push(dot());
-        }
-        meta.push(Span::styled(
-            format!("v{}", version),
-            Style::default().fg(Color::Green),
-        ));
+        if !meta.is_empty() { meta.push(dot()); }
+        meta.push(Span::styled(format!("v{}", version), Style::default().fg(Color::Green)));
     }
     if !last_modified.is_empty() {
-        if !meta.is_empty() {
-            meta.push(dot());
-        }
+        if !meta.is_empty() { meta.push(dot()); }
         meta.push(Span::styled(last_modified, label_style));
     }
     if !parent.is_empty() {
-        if !meta.is_empty() {
-            meta.push(dot());
-        }
+        if !meta.is_empty() { meta.push(dot()); }
         meta.push(Span::styled("↳ ", label_style));
         meta.push(Span::styled(parent, label_style));
     }
@@ -349,7 +349,6 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
     lines.push(Line::from(separator));
     lines.push(Line::from(""));
 
-    // Body — styled lines from TUI renderer; no line cap (scroll with PgDn/PgUp)
     if let Some(d) = detail {
         if let Some(body) = d
             .body
@@ -403,7 +402,7 @@ fn render_status_bar(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
             format!(" {} {}", state.pages.len(), kind_plural),
             Style::default().fg(Color::DarkGray),
         )),
-        AppState::Filter { .. } => Line::from(vec![
+        AppState::Filtering { .. } => Line::from(vec![
             Span::raw(format!(" {}", state.visible_count())),
             Span::styled(
                 format!("/{} {} match", state.pages.len(), kind_plural),
@@ -415,75 +414,46 @@ fn render_status_bar(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
     f.render_widget(p, area);
 }
 
-/// Help bar — fixed key/description spans per UI-SPEC.
-fn render_help_bar(f: &mut Frame, area: Rect) {
-    let key = |k: &'static str| {
-        Span::styled(
-            k,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )
+/// 3-row bordered filter panel shown below the body when a filter is active.
+fn render_filter_panel(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
+    let (typing, query) = match &state.browse_state {
+        AppState::Filtering { query } => (true, query.as_str()),
+        _ => (false, state.active_filter.as_str()),
     };
-    let line = Line::from(vec![
-        Span::raw(" "),
-        key("/"),
-        Span::raw("  filter   "),
-        key("o"),
-        Span::raw("  open   "),
-        key("e"),
-        Span::raw("  edit   "),
-        key("c"),
-        Span::raw("  comments   "),
-        key("PgDn/PgUp"),
-        Span::raw("  scroll   "),
-        key("?"),
-        Span::raw("  help   "),
-        key("Esc"),
-        Span::raw("  back"),
-    ]);
-    f.render_widget(Paragraph::new(line), area);
-}
 
-/// 3-row Filter input overlay at the top of the list pane.
-fn render_filter_overlay(f: &mut Frame, query: &str, list_area: Rect) {
-    let overlay = Rect {
-        x: list_area.x,
-        y: list_area.y,
-        width: list_area.width,
-        height: 3.min(list_area.height),
-    };
-    f.render_widget(Clear, overlay);
+    let border_color = if typing { Color::Cyan } else { Color::DarkGray };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(Color::Cyan))
-        .title(" Filter ");
-    let cursor_span = Span::styled(
-        "█",
-        Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    );
-    let query_span = Span::styled(query, Style::default().fg(Color::Cyan));
-    let line = Line::from(vec![Span::raw(" "), query_span, cursor_span]);
-    let p = Paragraph::new(line).block(block);
-    f.render_widget(p, overlay);
+        .border_style(Style::default().fg(border_color))
+        .title(Span::styled(
+            " Filter ",
+            Style::default().fg(border_color).add_modifier(Modifier::BOLD),
+        ));
+
+    let line = if typing {
+        Line::from(vec![
+            Span::raw(" "),
+            Span::styled(query.to_string(), Style::default().fg(Color::Cyan)),
+            Span::styled("█", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ])
+    } else {
+        Line::from(vec![
+            Span::raw(" "),
+            Span::styled(query.to_string(), Style::default().fg(Color::White)),
+            Span::styled(
+                "  · Esc to clear  / to refine",
+                Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+            ),
+        ])
+    };
+
+    f.render_widget(Paragraph::new(line).block(block), area);
 }
 
-/// 50x16 Help modal — UI-SPEC Help Modal (Pages View) content.
+/// Full-panel Help modal — fills the entire area (k9s-style).
 fn render_help_modal(f: &mut Frame, full_area: Rect) {
-    let modal_w: u16 = 50;
-    let modal_h: u16 = 18;
-    let x = full_area.x + (full_area.width.saturating_sub(modal_w)) / 2;
-    let y = full_area.y + (full_area.height.saturating_sub(modal_h)) / 2;
-    let area = Rect {
-        x,
-        y,
-        width: modal_w.min(full_area.width),
-        height: modal_h.min(full_area.height),
-    };
-    f.render_widget(Clear, area);
+    f.render_widget(Clear, full_area);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -492,41 +462,51 @@ fn render_help_modal(f: &mut Frame, full_area: Rect) {
         .title(Span::styled(
             " Key Bindings ",
             Style::default().add_modifier(Modifier::BOLD),
-        ));
+        ))
+        .padding(Padding::new(2, 2, 1, 1));
 
-    let bold = Style::default()
-        .fg(Color::Yellow)
-        .add_modifier(Modifier::BOLD);
-    let key_style = Style::default().fg(Color::Cyan);
-    let row = |k: &'static str, desc: &'static str| {
+    let inner = block.inner(full_area);
+
+    let heading = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let desc_style = Style::default().fg(Color::DarkGray);
+
+    let row = |k: &'static str, desc: &'static str| -> Line<'static> {
         Line::from(vec![
-            Span::raw("  "),
-            Span::styled(format!("{:<12}", k), key_style),
-            Span::raw(desc),
+            Span::styled(format!("{:<16}", format!("<{}>", k)), key_style),
+            Span::styled(desc, desc_style),
         ])
     };
+    let sec = |s: &'static str| Line::from(Span::styled(s, heading));
 
     let lines = vec![
-        Line::from(Span::styled("Navigation", bold)),
-        row("↑ / k", "Move up"),
-        row("↓ / j", "Move down"),
-        row("g", "Jump to top"),
-        row("G", "Jump to bottom"),
-        row("PgDn / PgUp", "Scroll preview"),
+        sec("Navigation"),
+        row("↑/k", "Move up"),
+        row("↓/j", "Move down"),
+        row("g/G", "Jump to top / bottom"),
         Line::from(""),
-        Line::from(Span::styled("Actions", bold)),
-        row("Enter / o", "Open in browser"),
+        sec("Spaces"),
+        row("Enter", "Browse pages in space"),
+        row("o", "Open space in browser"),
+        Line::from(""),
+        sec("Pages"),
+        row("Enter/o", "Open page in browser"),
         row("e", "Edit in $EDITOR"),
         row("c", "View comments"),
-        row("/", "Start filter"),
-        row("Esc", "Close filter / go back"),
+        row("PgDn/PgUp", "Scroll preview pane"),
         Line::from(""),
-        Line::from(Span::styled("Application", bold)),
-        row("?", "Show this help"),
+        sec("Comments"),
+        row("Esc", "Go back to pages"),
+        Line::from(""),
+        sec("General"),
+        row("/", "Filter  (Enter commits · Esc cancels)"),
+        row("Esc", "Close overlay / go back"),
+        row("?", "Toggle help"),
         row("q", "Quit"),
     ];
-    let p = Paragraph::new(lines).block(block);
-    f.render_widget(p, area);
+
+    f.render_widget(block, full_area);
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 #[cfg(test)]
@@ -584,7 +564,7 @@ mod tests {
             ApiContentType::Page,
             vec![make_page("1", "Alpha")],
         );
-        state.browse_state = AppState::Filter {
+        state.browse_state = AppState::Filtering {
             query: "alp".to_string(),
         };
         state.apply_filter("alp");
@@ -643,7 +623,7 @@ mod tests {
     }
 
     #[test]
-    fn render_pages_help_bar_shows_required_bindings() {
+    fn render_pages_shortcuts_bar_shows_required_bindings() {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
         let mut state = PagesBrowseState::with_pages(
@@ -669,10 +649,10 @@ mod tests {
             })
             .collect::<Vec<_>>()
             .join("\n");
-        for token in &["filter", "open", "edit", "comments", "help", "back"] {
+        for token in &["Filter", "Open", "Edit", "Comments", "Help", "Back"] {
             assert!(
                 dump.contains(token),
-                "help bar must contain '{}'\nGot:\n{}",
+                "shortcuts bar must contain '{}'\nGot:\n{}",
                 token,
                 dump
             );

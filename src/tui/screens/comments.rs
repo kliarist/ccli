@@ -1,13 +1,10 @@
 //! CommentsBrowse render — D-48..D-50, CMNT-01.
-//!
-//! Pure render: no I/O, no state mutation beyond ListState (required by
-//! render_stateful_widget). Mirrors src/tui/screens/pages.rs structure.
 
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
-    Block, BorderType, Borders, HighlightSpacing, List, ListItem, Padding, Paragraph, Wrap,
+    Block, BorderType, Borders, Clear, HighlightSpacing, List, ListItem, Padding, Paragraph, Wrap,
 };
 use ratatui::Frame;
 
@@ -15,59 +12,95 @@ use crate::api::comment::Comment;
 use crate::output::strip_storage_xml;
 use crate::tui::app::{AppState, CommentsBrowseState, SPINNER_FRAMES};
 
-/// Top-level render — vertical 4-row split (title, body, status, help).
+/// Top-level render — vertical split: title (with shortcuts), body, status.
 pub fn render_comments(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) {
     let vertical = Layout::vertical([
-        Constraint::Length(3),
-        Constraint::Min(0),
-        Constraint::Length(1),
-        Constraint::Length(1),
+        Constraint::Length(3),  // title block (with shortcuts inside)
+        Constraint::Min(0),     // body
+        Constraint::Length(1),  // status bar
     ]);
-    let [title_area, body_area, status_area, help_area] = vertical.areas(area);
+    let [title_area, body_area, status_area] = vertical.areas(area);
 
     render_title(f, state, title_area);
     render_body(f, state, body_area);
     render_status_bar(f, state, status_area);
-    render_help_bar(f, help_area);
+
+    if matches!(&state.browse_state, AppState::Modal) {
+        render_help_modal(f, area);
+    }
 }
 
+/// Title block: rounded cyan border with screen name + shortcuts row inside.
 fn render_title(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
-    let block = Block::default()
-        .borders(Borders::BOTTOM)
-        .border_type(BorderType::Plain);
-    let inner = block.inner(area);
-    f.render_widget(block, area);
     let count_text = match state.browse_state {
         AppState::Loading => "Loading…".to_string(),
         _ => format!("{} total", state.comments.len()),
     };
-    let left_plain = " Comments — ".to_string();
-    let total_w = inner.width as usize;
-    let left_len = left_plain.chars().count() + state.page_id.chars().count();
-    let pad = total_w.saturating_sub(left_len + count_text.chars().count() + 1);
-    let line = Line::from(vec![
+
+    let left_title = Line::from(vec![
+        Span::raw(" "),
         Span::styled(
-            left_plain,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
+            "Comments",
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
         ),
+        Span::styled(" — ", Style::default().fg(Color::DarkGray)),
         Span::styled(
             state.page_id.clone(),
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
         ),
-        Span::raw(" ".repeat(pad)),
-        Span::styled(count_text, Style::default().fg(Color::DarkGray)),
         Span::raw(" "),
+    ])
+    .left_aligned();
+    let right_title = Line::from(Span::styled(
+        format!(" {} ", count_text),
+        Style::default().fg(Color::DarkGray),
+    ))
+    .right_aligned();
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(left_title)
+        .title(right_title);
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    // Shortcuts row — k9s-style <key> tags
+    let kb = |k: &'static str| {
+        Span::styled(
+            format!("<{}>", k),
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        )
+    };
+    let desc = |d: &'static str| {
+        Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray))
+    };
+    let shortcuts = Line::from(vec![
+        kb("g/G"),
+        desc("Top/Bot"),
+        kb("?"),
+        desc("Help"),
+        kb("Esc"),
+        desc("Back"),
+        kb("q"),
+        desc("Quit"),
     ]);
-    f.render_widget(Paragraph::new(line), inner);
+    f.render_widget(Paragraph::new(shortcuts), inner);
 }
 
+/// Body: single rounded cyan outer box, list and preview panes inside.
 fn render_body(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) {
+    let outer = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(Color::Cyan));
+    let inner = outer.inner(area);
+    f.render_widget(outer, area);
+
     let horizontal = Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)]);
-    let [list_area, preview_area] = horizontal.areas(area);
+    let [list_area, preview_area] = horizontal.areas(inner);
     render_list_pane(f, state, list_area);
     render_preview_pane(f, state, preview_area);
 }
@@ -76,6 +109,7 @@ fn render_list_pane(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) 
     let block = Block::default()
         .borders(Borders::RIGHT)
         .border_type(BorderType::Plain)
+        .border_style(Style::default().fg(Color::DarkGray))
         .padding(Padding::horizontal(1));
     let inner_w = block.inner(area).width as usize;
 
@@ -138,7 +172,6 @@ fn format_list_row(c: &Comment, max_chars: usize) -> Line<'static> {
     let stripped = strip_storage_xml(body);
     let first_line = stripped.lines().next().unwrap_or("").to_string();
 
-    // Measure total chars to decide whether to truncate
     let sep = " · ";
     let total = author.chars().count()
         + sep.len()
@@ -160,7 +193,6 @@ fn format_list_row(c: &Comment, max_chars: usize) -> Line<'static> {
         ]);
     }
 
-    // Need to truncate — fall back to plain truncated string for simplicity
     let raw = format!("{} · {} · {}", author, date, first_line);
     Line::raw(truncate_with_ellipsis(&raw, max_chars))
 }
@@ -234,7 +266,6 @@ fn render_preview_pane(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
     }
 
     let mut lines: Vec<Line> = Vec::new();
-    // Author value in LightBlue to match list pane
     let author_value_line = Line::from(vec![
         Span::styled(format!("{:<14}", "Author:"), bold),
         match author.as_deref() {
@@ -279,25 +310,62 @@ fn render_status_bar(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
     f.render_widget(Paragraph::new(line), area);
 }
 
-fn render_help_bar(f: &mut Frame, area: Rect) {
-    let key = |k: &'static str| {
-        Span::styled(
-            k,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )
+/// Full-panel Help modal — fills the entire area (k9s-style).
+fn render_help_modal(f: &mut Frame, area: Rect) {
+    f.render_widget(Clear, area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title(Span::styled(
+            " Key Bindings ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ))
+        .padding(Padding::new(2, 2, 1, 1));
+
+    let inner = block.inner(area);
+
+    let heading = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
+    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let desc_style = Style::default().fg(Color::DarkGray);
+
+    let row = |k: &'static str, desc: &'static str| -> Line<'static> {
+        Line::from(vec![
+            Span::styled(format!("{:<16}", format!("<{}>", k)), key_style),
+            Span::styled(desc, desc_style),
+        ])
     };
-    let line = Line::from(vec![
-        Span::raw(" "),
-        key("o"),
-        Span::raw("  open   "),
-        key("?"),
-        Span::raw("  help   "),
-        key("Esc"),
-        Span::raw("  back"),
-    ]);
-    f.render_widget(Paragraph::new(line), area);
+    let sec = |s: &'static str| Line::from(Span::styled(s, heading));
+
+    let lines = vec![
+        sec("Navigation"),
+        row("↑/k", "Move up"),
+        row("↓/j", "Move down"),
+        row("g/G", "Jump to top / bottom"),
+        Line::from(""),
+        sec("Spaces"),
+        row("Enter", "Browse pages in space"),
+        row("o", "Open space in browser"),
+        Line::from(""),
+        sec("Pages"),
+        row("Enter/o", "Open page in browser"),
+        row("e", "Edit in $EDITOR"),
+        row("c", "View comments"),
+        row("PgDn/PgUp", "Scroll preview pane"),
+        Line::from(""),
+        sec("Comments"),
+        row("Esc", "Go back to pages"),
+        Line::from(""),
+        sec("General"),
+        row("/", "Filter  (Enter commits · Esc cancels)"),
+        row("Esc", "Close overlay / go back"),
+        row("?", "Toggle help"),
+        row("q", "Quit"),
+    ];
+
+    f.render_widget(block, area);
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 #[cfg(test)]
@@ -410,7 +478,7 @@ mod tests {
     }
 
     #[test]
-    fn render_comments_help_bar_shows_open_help_back() {
+    fn render_comments_shortcuts_bar_shows_navigate_help_back() {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("term");
         let mut state = CommentsBrowseState::with_comments(
@@ -421,10 +489,10 @@ mod tests {
             .draw(|f| render_comments(f, &mut state, f.area()))
             .expect("draw");
         let d = dump(&terminal);
-        for token in &["open", "help", "back"] {
+        for token in &["Top/Bot", "Help", "Back"] {
             assert!(
                 d.contains(token),
-                "help bar missing token {:?} in dump:\n{}",
+                "shortcuts bar missing token {:?} in dump:\n{}",
                 token,
                 d
             );
