@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CI requirements — must pass before committing
+
+**Always run `cargo fmt --all` before committing.** CI runs `cargo fmt --all -- --check` and will fail if formatting is off. `cargo build` and `cargo test` do not enforce formatting — the check is CI-only, so it's easy to miss locally.
+
+```bash
+# Full pre-commit check (run all three)
+cargo fmt --all
+cargo clippy -- -D warnings
+cargo test
+```
+
 ## Common commands
 
 ```bash
