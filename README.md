@@ -21,9 +21,10 @@ cargo install --path .
 - 📁 Space listing and browsing
 - 📄 Page listing, viewing, searching, creating, and editing
 - 📝 Blog post listing, viewing, creating, and editing
-- 💬 Plain-text comment authoring in `$EDITOR`
+- 💬 Comment listing and plain-text authoring in `$EDITOR`
 - 📎 Attachment listing, download, and upload
 - 📊 Pretty table output for interactive terminals; TSV for pipes
+- ✍️ Markdown editing via `pandoc` (auto-detected; falls back to raw XML)
 
 ## 🔧 Configuration
 
@@ -60,16 +61,83 @@ Launch with:
 ccli
 ```
 
+### Spaces browse
+
+The default screen lists all accessible spaces. The right pane shows a live preview of the selected space.
+
+```
+╭─ Spaces ─────────────────────────────────────────────────── 8 total ─╮
+│ </> Filter  <Enter> Pages  <o> Open  <g/G> Top/Bot  <?> Help  <q> Quit│
+╰────────────────────────────────────────────────────────────────────────╯
+╭────────────────────────────────────────────────────────────────────────╮
+│  DEV      Developer Docs         │ Key:          INFRA                 │
+│  DESIGN   Design System          │ Name:         Infrastructure        │
+│  ENG      Engineering            │ Type:         global                │
+│> INFRA    Infrastructure         │ Description:  Platform services     │
+│  MOBILE   Mobile Team            │               for all backend teams │
+│  OPS      Operations             │                                     │
+│  QA       Quality Assurance      │ Homepage URL: /display/INFRA/Home   │
+│  RELEASE  Release Management     │                                     │
+╰────────────────────────────────────────────────────────────────────────╯
+  8 spaces
+```
+
+Press `Enter` to drill into a space and browse its pages.
+
+### Pages browse
+
+After pressing `Enter` on a space, the right pane renders the selected page content with styled headings, lists, and code blocks.
+
+```
+╭─ Pages — ENG ───────────────────────────────────────────── 10 total ─╮
+│ </> Filter  <Enter/o> Open  <e> Edit  <c> Comments  <g/G> Top/Bot    │
+╰───────────────────────────────────────────────────────────────────────╯
+╭───────────────────────────────────────────────────────────────────────╮
+│  API Gateway Migration          │ DEPLOYMENT CHECKLIST                │
+│  CI Pipeline Runbook            │ ════════════════════                │
+│  Database Schema v2             │                                     │
+│> Deployment Checklist           │ Pre-flight steps before every       │
+│  Incident Response Playbook     │ production deployment.              │
+│  Monitoring Setup               │                                     │
+│  On-Call Rotation               │   • Verify staging green            │
+│  Release Notes 2.4.0            │   • Confirm rollback plan           │
+│  Service Architecture           │   • Notify on-call engineer         │
+│  Team Onboarding                │   • Check feature flags             │
+╰───────────────────────────────────────────────────────────────────────╯
+  Deployment Checklist · id 2031633
+```
+
+### Fuzzy filter
+
+Press `/` to open the filter panel. Results update in real time as you type. `Esc` cancels and restores the full list; `Enter` commits the filter and keeps the narrowed view while you browse.
+
+```
+╭─ Spaces ─────────────────────────────────── 8 total / 2 shown ─╮
+│ </> Filter  <Enter> Pages  <o> Open  <g/G> Top/Bot  <?> Help   │
+╰─────────────────────────────────────────────────────────────────╯
+╭─────────────────────────────────────────────────────────────────╮
+│> ENG      Engineering            │ Key:          ENG             │
+│  OPS      Operations             │ Name:         Engineering     │
+│                                  │ Type:         global          │
+│                                  │ Description:  —               │
+│                                  │ Homepage URL: /display/ENG    │
+╰─────────────────────────────────────────────────────────────────╯
+╭─ Filter ────────────────────────────────────────────────────────╮
+│  eng█                                                           │
+╰─────────────────────────────────────────────────────────────────╯
+  2 spaces
+```
+
 ### ⌨️ Keyboard shortcuts
 
 | Key | Action |
 |-----|--------|
 | `↑` / `↓` | Navigate list |
-| `j` / `k` | Navigate list (vim-style, Browse mode only) |
+| `j` / `k` | Navigate list (vim-style) |
 | `g` / `G` | Jump to top / bottom |
 | `/` | Open fuzzy filter |
 | `Esc` | Close filter / go back |
-| `Enter` | Open selected space or page |
+| `Enter` | Drill into space or open page in browser |
 | `o` | Open in browser |
 | `e` | Edit page in `$EDITOR` |
 | `c` | View comments |
@@ -81,10 +149,6 @@ ccli
 
 - Scroll on the **left pane** to move the list selection up and down
 - Scroll on the **right pane** to scroll the page preview
-
-### 🔍 Filter
-
-Press `/` to open the fuzzy filter. All printable characters type into the filter query. Use `↑`/`↓` arrow keys to navigate the filtered list, and `Enter` to open the selected item. `Esc` closes the filter and restores the full list.
 
 ## 🛠️ CLI Commands
 
@@ -115,22 +179,30 @@ ccli page search "type=page AND space=DEV AND text~deploy" --limit 25
 # Create a page (opens $EDITOR)
 ccli page create --space DEV --title "Release Notes"
 
-# Edit a page (opens $EDITOR)
+# Edit a page — Markdown if pandoc is installed, raw XML otherwise
 ccli page edit 123456
+
+# Edit a page, always raw Confluence storage XML
+ccli page edit 123456 --raw
 ```
 
 ### Blog Posts
 
 ```bash
 ccli blog list DEV
+ccli blog view 123456
 ccli blog create --space DEV --title "Weekly Update"
 ccli blog edit 123456
+ccli blog edit 123456 --raw
 ```
 
 ### Comments
 
 ```bash
-# Add a comment (opens $EDITOR)
+# List comments on a page
+ccli comment list 123456
+
+# Add a comment (opens $EDITOR, plain text)
 ccli comment add 123456
 ```
 
@@ -157,7 +229,7 @@ ccli --plain --no-headers --columns key,name space list
 | `--no-headers` | Suppress header row |
 | `--columns a,b` | Show only these columns, in this order |
 
-## 📝 Editor Integration
+## ✍️ Editor Integration
 
 The following commands open `$EDITOR` (falls back to `$VISUAL`, then `vi`):
 
@@ -165,7 +237,9 @@ The following commands open `$EDITOR` (falls back to `$VISUAL`, then `vi`):
 - `ccli blog create` / `ccli blog edit`
 - `ccli comment add`
 
-Pages and blog posts edit Confluence storage XML directly. Comments are written as plain text and converted to storage format automatically.
+**Page and blog post editing** uses Markdown automatically when [`pandoc`](https://pandoc.org) is installed — install it with `brew install pandoc`. Without pandoc the file opens as raw Confluence storage XML. Pass `--raw` to any edit command to bypass pandoc and edit XML directly.
+
+**Comments** are written as plain text and converted to storage format automatically.
 
 ## 🏗️ Build & Test
 
