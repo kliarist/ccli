@@ -4,6 +4,7 @@ use tracing_subscriber::EnvFilter;
 mod api;
 mod cli;
 mod config;
+mod edit;
 mod output;
 mod tui;
 

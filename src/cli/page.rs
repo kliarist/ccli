@@ -49,7 +49,9 @@ pub async fn run(cli: &Cli, args: &PageArgs) -> anyhow::Result<()> {
             )
             .await
         }
-        PageCommands::Edit { page_id } => handle_edit_typed(page_id, ContentType::Page).await,
+        PageCommands::Edit { page_id, raw } => {
+            handle_edit_typed(page_id, ContentType::Page, *raw).await
+        }
         PageCommands::Search { cql, limit } => handle_search(cli, cql, *limit).await,
     }
 }
@@ -150,7 +152,7 @@ pub async fn handle_create_typed(
     let temp_path = std::env::temp_dir().join(format!("ccli-create-{}.xml", std::process::id()));
     std::fs::write(&temp_path, CREATE_TEMPLATE)
         .with_context(|| format!("Failed to write template to {:?}", temp_path))?;
-    launch_editor(&temp_path)?;
+    crate::edit::launch_editor(&temp_path)?;
     let xml_content = std::fs::read_to_string(&temp_path)
         .with_context(|| format!("Failed to read edited content from {:?}", temp_path))?;
 
@@ -182,9 +184,16 @@ pub async fn handle_create_typed(
 
 /// `ccli page edit <ID>` / `ccli blog edit <ID>` — D-39, D-41.
 ///
-/// On HTTP 409: stderr prints conflict message and the temp file path; temp file
-/// is NOT deleted so the user can re-open and merge manually.
-pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> anyhow::Result<()> {
+/// When pandoc is available the body is presented as Markdown; use `--raw` to
+/// skip that and edit the Confluence storage XML directly.
+///
+/// On HTTP 409: stderr prints conflict message; temp file is preserved so the
+/// user can re-open and merge manually.
+pub async fn handle_edit_typed(
+    content_id: &str,
+    content_type: ContentType,
+    raw: bool,
+) -> anyhow::Result<()> {
     let id = sanitize_id(content_id).ok_or_else(|| {
         AppError::Api(format!(
             "Invalid id: must be numeric (got {:?})",
@@ -204,27 +213,25 @@ pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> a
         anyhow::anyhow!("Page version was not returned by the API — cannot safely update.")
     })?;
     let title = detail.title.clone();
-    // space.key is not part of PageDetail directly in our struct, but it IS required by update_page.
-    // We extract it from the API at call time. For now, look it up from the ancestors chain or
-    // require the user to supply it — but Confluence's PUT works as long as space matches the
-    // existing page's space, so we infer from the GET response if available. The `_links.webui`
-    // path always includes the space key (e.g. "/display/DEV/Page+Title") — extract from it.
-    let space_key = extract_space_key_from_webui(&detail).ok_or_else(|| {
-        AppError::Api(
-            "Could not determine space key from page _links.webui — page may be missing _links data.".to_string(),
-        )
-    })?;
+    let space_key = detail
+        .space
+        .as_ref()
+        .map(|s| s.key.clone())
+        .or_else(|| extract_space_key_from_webui(&detail))
+        .ok_or_else(|| {
+            AppError::Api(
+                "Could not determine space key — page is missing both space.key and _links.webui data.".to_string(),
+            )
+        })?;
 
     let body = extract_body_value(&detail);
 
-    let temp_path = std::env::temp_dir().join(format!("ccli-edit-{}.xml", id));
-    std::fs::write(&temp_path, &body)
-        .with_context(|| format!("Failed to write current content to {:?}", temp_path))?;
+    if !raw && !crate::edit::pandoc_available() {
+        eprintln!("Tip: install pandoc for Markdown editing. Editing raw storage XML.");
+    }
 
-    launch_editor(&temp_path)?;
-
-    let new_xml = std::fs::read_to_string(&temp_path)
-        .with_context(|| format!("Failed to read edited content from {:?}", temp_path))?;
+    let new_xml = crate::edit::run_edit_session(&body, &id, raw)
+        .context("Editor session failed")?;
 
     match update_page(
         &client,
@@ -238,13 +245,14 @@ pub async fn handle_edit_typed(content_id: &str, content_type: ContentType) -> a
     .await
     {
         Ok(()) => {
-            // Best-effort cleanup on success
-            let _ = std::fs::remove_file(&temp_path);
             println!("Saved.");
             Ok(())
         }
         Err(AppError::Api(msg)) if msg.starts_with("Conflict:") => {
-            // D-39: preserve temp file, print path on stderr
+            // D-39: temp file preserved by run_edit_session; print path on stderr
+            let ext = if raw { "xml" } else { "md" };
+            let temp_path =
+                std::env::temp_dir().join(format!("ccli-edit-{}.{}", id, ext));
             eprintln!("{}", msg);
             eprintln!(
                 "Your edits saved at {} — re-open to merge manually.",
@@ -395,21 +403,6 @@ pub async fn handle_search(cli: &Cli, cql: &str, limit: u32) -> anyhow::Result<(
     Ok(())
 }
 
-/// Launch `$EDITOR` (or `$VISUAL`, or `vi`) on the given path, blocking until exit.
-fn launch_editor(path: &std::path::Path) -> anyhow::Result<()> {
-    let editor = std::env::var("EDITOR")
-        .or_else(|_| std::env::var("VISUAL"))
-        .unwrap_or_else(|_| "vi".to_string());
-    // Security: never via shell — arg() prevents injection (T-03-EDITOR).
-    let status = std::process::Command::new(&editor)
-        .arg(path)
-        .status()
-        .with_context(|| format!("Failed to launch $EDITOR ({})", editor))?;
-    if !status.success() {
-        anyhow::bail!("$EDITOR exited non-zero (status {:?})", status.code());
-    }
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

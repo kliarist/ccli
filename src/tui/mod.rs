@@ -536,13 +536,13 @@ async fn handle_edit_page(
         .and_then(|s| s.value.clone())
         .unwrap_or_default();
 
-    let temp_path = std::env::temp_dir().join(format!("ccli-edit-{}.xml", page_id));
+    let using_pandoc = crate::edit::pandoc_available();
 
     // Phase 2: suspend TUI — ratatui::restore() handles raw mode + alt screen + panic hook.
     ratatui::restore();
 
     // Always restore the TUI before returning, no matter what fails (Pitfall 4).
-    let editor_result = run_editor_workflow(&temp_path, &body_xml);
+    let editor_result = crate::edit::run_edit_session(&body_xml, page_id, false);
 
     // Phase 3: regardless of editor outcome, re-enter the TUI before any further work.
     *terminal = ratatui::init();
@@ -554,6 +554,7 @@ async fn handle_edit_page(
             return;
         }
     };
+
 
     // Phase 4: PUT to Confluence
     let put_result = update_page(
@@ -567,11 +568,18 @@ async fn handle_edit_page(
     )
     .await;
 
+    let ext = if using_pandoc { "md" } else { "xml" };
+    let temp_path = std::env::temp_dir().join(format!("ccli-edit-{}.{}", page_id, ext));
+
     match put_result {
         Ok(()) => {
-            // Best-effort cleanup of temp file
             let _ = std::fs::remove_file(&temp_path);
-            set_pages_status(app, "Saved.".to_string(), StatusStyle::Success);
+            let msg = if using_pandoc {
+                "Saved.".to_string()
+            } else {
+                "Saved. (install pandoc for Markdown editing)".to_string()
+            };
+            set_pages_status(app, msg, StatusStyle::Success);
         }
         Err(AppError::Api(msg)) if msg.starts_with("Conflict:") => {
             // D-39: preserve temp file; status message includes the path
@@ -591,27 +599,6 @@ async fn handle_edit_page(
     }
 }
 
-/// Run the editor (Command::new(editor).arg(path).status()) and read back the file.
-/// Returns the new XML on success. NEVER invokes a shell.
-fn run_editor_workflow(path: &std::path::Path, initial_content: &str) -> anyhow::Result<String> {
-    use anyhow::Context;
-    std::fs::write(path, initial_content)
-        .with_context(|| format!("Failed to write temp file {}", path.display()))?;
-    let editor = std::env::var("EDITOR")
-        .or_else(|_| std::env::var("VISUAL"))
-        .unwrap_or_else(|_| "vi".to_string());
-    // Security T-03-21: arg() avoids shell — no injection via crafted $EDITOR.
-    let status = std::process::Command::new(&editor)
-        .arg(path)
-        .status()
-        .with_context(|| format!("Failed to launch $EDITOR ({})", editor))?;
-    if !status.success() {
-        anyhow::bail!("$EDITOR exited non-zero (status {:?})", status.code());
-    }
-    let new_xml = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read edited content {}", path.display()))?;
-    Ok(new_xml)
-}
 
 /// Extract the space key from a PageDetail.
 ///
@@ -743,16 +730,14 @@ mod tests {
     }
 
     #[test]
-    fn run_editor_workflow_returns_error_when_editor_fails() {
+    fn run_editor_session_returns_error_when_editor_fails() {
         // Set EDITOR to a binary that does not exist; the call must produce an Err.
-        let path = std::env::temp_dir().join("ccli-test-editor-fail.xml");
         std::env::set_var("EDITOR", "this-binary-does-not-exist-xyzzy-12345");
-        let result = run_editor_workflow(&path, "<p>test</p>");
+        let result = crate::edit::run_edit_session("<p>test</p>", "99998", true);
         std::env::remove_var("EDITOR");
         assert!(
             result.is_err(),
             "expected editor launch failure to surface as Err"
         );
-        let _ = std::fs::remove_file(&path);
     }
 }

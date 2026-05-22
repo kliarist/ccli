@@ -218,7 +218,7 @@ pub async fn list_all_pages(
 
 /// Fetch a single page or blog post with body, version, and ancestors.
 ///
-/// Endpoint: GET /rest/api/content/{id}?expand=body.storage,version,ancestors (D-43)
+/// Endpoint: GET /rest/api/content/{id}?expand=body.storage,version,ancestors,space (D-43)
 #[allow(dead_code)]
 #[instrument(skip(client))]
 pub async fn get_page_detail(client: &Client, page_id: &str) -> Result<PageDetail, AppError> {
@@ -232,7 +232,7 @@ pub async fn get_page_detail(client: &Client, page_id: &str) -> Result<PageDetai
     let resp = client
         .inner()
         .get(&url)
-        .query(&[("expand", "body.storage,version,ancestors")])
+        .query(&[("expand", "body.storage,version,ancestors,space")])
         .send()
         .await
         .map_err(|e| {

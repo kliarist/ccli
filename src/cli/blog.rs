@@ -27,8 +27,8 @@ pub async fn run(cli: &Cli, args: &BlogArgs) -> anyhow::Result<()> {
             )
             .await
         }
-        BlogCommands::Edit { post_id } => {
-            page::handle_edit_typed(post_id, ContentType::BlogPost).await
+        BlogCommands::Edit { post_id, raw } => {
+            page::handle_edit_typed(post_id, ContentType::BlogPost, *raw).await
         }
     }
 }

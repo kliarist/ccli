@@ -99,10 +99,13 @@ pub enum PageCommands {
         #[arg(long)]
         parent: Option<String>,
     },
-    /// Edit an existing page's storage XML in $EDITOR (D-41).
+    /// Edit an existing page in $EDITOR. Uses Markdown when pandoc is available (D-41).
     Edit {
         /// Page ID (numeric string).
         page_id: String,
+        /// Skip pandoc conversion and edit raw Confluence storage XML.
+        #[arg(long)]
+        raw: bool,
     },
     /// Search pages by CQL expression (D-45..D-47). Always table output, no TUI.
     Search {
@@ -144,10 +147,13 @@ pub enum BlogCommands {
         #[arg(long)]
         title: Option<String>,
     },
-    /// Edit an existing blog post's storage XML in $EDITOR (D-41).
+    /// Edit an existing blog post in $EDITOR. Uses Markdown when pandoc is available (D-41).
     Edit {
         /// Blog post ID (numeric string).
         post_id: String,
+        /// Skip pandoc conversion and edit raw Confluence storage XML.
+        #[arg(long)]
+        raw: bool,
     },
 }
 
@@ -415,9 +421,10 @@ mod tests {
         let cli = Cli::try_parse_from(["ccli", "page", "edit", "12345"]).expect("parse");
         match cli.command {
             Some(Commands::Page(PageArgs {
-                command: PageCommands::Edit { page_id },
+                command: PageCommands::Edit { page_id, raw },
             })) => {
                 assert_eq!(page_id, "12345");
+                assert!(!raw);
             }
             other => panic!("expected Commands::Page(Edit), got {:?}", other),
         }
