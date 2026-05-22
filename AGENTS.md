@@ -1,71 +1,121 @@
-# Agents
+# AGENTS.md
 
-**ccli** — Confluence Data Center CLI (Rust, async).
+**ccli** — Confluence Data Center / Cloud CLI (Rust, async). Bare `ccli` launches a TUI; subcommands are non-interactive CLI.
 
-## Pre-Push Checklist
+## CI requirements — must pass before every commit
 
-Run all four before pushing — any failure here means broken code:
+**Always run `cargo fmt --all` before committing.** CI runs `cargo fmt --all -- --check` and fails on any diff. `cargo build` and `cargo test` do not enforce formatting — the check is CI-only, so it is easy to miss locally.
 
 ```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo build --locked
-cargo test --locked
+# Full pre-commit checklist (run all three, in order)
+cargo fmt --all
+cargo clippy -- -D warnings
+cargo test
 ```
 
-To auto-fix formatting: `cargo fmt`
-
-## Build & Test
+## Common commands
 
 ```bash
-cargo build          # debug build
+# Build
+cargo build
 cargo build --release
-cargo test          # run all tests
-cargo test -- --nocapture
-cargo run -- init   # run the CLI
+
+# Run (bare = TUI; subcommand = CLI)
+cargo run
+cargo run -- space list
+cargo run -- page --space KEY
+
+# Tests
+cargo test
+cargo test <test_name>          # run a single test by name (substring match)
+cargo test -- --nocapture       # show println!/eprintln! output
+
+# Lint
+cargo clippy -- -D warnings
+
+# Format
+cargo fmt --all
 ```
 
-## Project Structure
+Config lives at `~/.config/ccli/config.toml`. Override with env vars `CCLI_URL` and `CCLI_TOKEN`. Enable debug logging with `RUST_LOG=debug`.
+
+## Module layout
 
 ```
 src/
-  main.rs              # Entry point, error dispatch, env tracing
-  cli/                 # Command parser & handlers
-    mod.rs             # Clap parser, global flags (--plain, --no-headers, --columns)
-    init.rs            # Init command: interactive setup
-  api/                 # Confluence API client & error types
-    mod.rs             # Re-exports Client, AppError
-    client.rs          # HTTP client for Confluence API
-    error.rs           # AppError enum (Auth, Network, Config, Api)
-  config/              # Config persistence & loading
-    mod.rs             # Config struct, load/save, env var overlays
-    path.rs            # Config file path resolution (~/.ccli/config.toml)
-  output/              # Tabular output formatting
-    mod.rs             # OutputConfig, table rendering
+  main.rs          — entry point, error formatting, CLI dispatch
+  edit.rs          — pandoc-backed Markdown editor session (shared by CLI and TUI)
+  config/          — load/save ~/.config/ccli/config.toml
+  api/
+    client.rs      — Arc<reqwest::Client> wrapper, auth headers, base URL
+    error.rs       — AppError enum (Auth/Network/Config/Api)
+    space.rs       — Space, SpaceDetail structs + fetch functions
+    page.rs        — Page, PageDetail + fetch/update
+    comment.rs     — Comment + fetch
+    attachment.rs  — Attachment + upload
+  cli/
+    mod.rs         — clap Cli struct, Commands/SpaceCommands enums
+    init.rs        — `ccli init` wizard (dialoguer)
+    space.rs       — `ccli space list` (comfy-table output)
+    page.rs        — `ccli page` (list/view/create/edit/search)
+    blog.rs        — `ccli blog` (delegates to page.rs with ContentType::BlogPost)
+    comment.rs     — `ccli comment`
+    attachment.rs  — `ccli attachment`
+  output/          — shared table/TSV/XML formatters + strip_storage_xml
+  tui/
+    mod.rs         — `tui::run()`: event loop, async tasks, crossterm setup/teardown
+    app.rs         — App struct + AppState enum + all key handlers (no terminal I/O)
+    screens/
+      spaces.rs    — render_spaces() and helpers
+      pages.rs     — render_pages() and helpers
+      comments.rs  — render_comments() and helpers
 ```
 
-## Key Patterns
+## Architecture
 
-- **Error Handling (D-04)**: `AppError` wraps all domain errors; anyhow chains preserve category through `.context()` calls
-- **Config Loading (W-06)**: Precedence: file + env overlay > env-only (when both `CCLI_URL`+`CCLI_TOKEN` set) > none
-- **Config Permissions**: Unix mode 0o600 after save (atomic write via `.toml.tmp` rename)
-- **Global Flags**: `--plain`, `--no-headers`, `--columns` auto-inherit to all subcommands via clap `global = true`
-- **Output**: TSV when piped, pretty table when interactive (via `is-terminal` crate)
+### TUI
 
-## Commands
+`tui::run()` owns the async runtime side: spawns tokio tasks that fetch data, sends results over `mpsc` channels, and drives a 100ms poll loop calling `terminal.draw(|f| render(f, &mut app))`.
 
-- `ccli init` — Interactive setup: configure URL + PAT, validate connection, save config
-- `ccli <cmd> --plain --no-headers --columns key,name` — Output formatting options (inherited)
+`tui/app.rs` is **terminal-I/O-free** — all state is plain Rust. Key handlers return `KeyAction` (Quit / PushScreen / PopScreen / None); the event loop in `tui/mod.rs` acts on the return value. This makes app logic unit-testable without a real terminal (`ratatui::TestBackend`).
 
-## Environment Variables
+Screen navigation uses a **stack**: `App::screen_stack: Vec<Screen>`. Empty stack = Spaces view. `Enter` pushes `Screen::PagesBrowse { .. }`; `Esc` pops. Comments are pushed from Pages.
+
+Each screen has its own browse-state sub-struct (`PagesBrowseState`, `CommentsBrowseState`) held inside `Screen` enum variants.
+
+### Error handling
+
+`AppError` (thiserror) has four variants: `Auth`, `Network`, `Config`, `Api`. `anyhow::Context` wraps errors in propagation. `main()` walks the full anyhow chain (`err.chain().find_map(downcast_ref::<AppError>)`) to recover the original variant for category-specific remediation hints — this survives `.context("…")` wrapping.
+
+### Filtering
+
+Real-time fuzzy filter uses `nucleo-matcher` on the haystack `"{key} {name}"`. Selection changes trigger a 150ms debounce before spawning a preview detail fetch; fetched details are cached in `App::preview_cache: HashMap<String, SpaceDetail>` for the session.
+
+### API client
+
+`api/client.rs` wraps `Arc<reqwest::Client>` so it is cheap to clone across async tasks. All API functions take `&Client` and return `Result<T, AppError>`. HTTP 401 maps to `AppError::Auth`; connection errors to `AppError::Network`.
+
+### Page editing (`edit.rs`)
+
+When `pandoc` is on `$PATH`, `page edit` / `blog edit` converts Confluence storage XML → Markdown before opening `$EDITOR` and converts back on save. Falls back to raw XML with a tip when pandoc is absent. CLI has a `--raw` flag to bypass pandoc explicitly.
+
+## Key patterns
+
+- **Output**: TSV when piped, pretty table when interactive (via `is-terminal` crate). `--plain` forces TSV even on a TTY.
+- **Config precedence**: file + env overlay > env-only (when both `CCLI_URL` + `CCLI_TOKEN` set) > none.
+- **Config permissions**: Unix mode 0o600 after save (atomic write via `.toml.tmp` rename).
+- **Security**: `$EDITOR` is always launched via `Command::new(editor).arg(path)` — never through a shell.
+- **Pagination**: uses `_links.next` absence + `size < limit` to detect last page (Confluence quirk).
+
+## Environment variables
 
 - `CCLI_URL` — Confluence instance URL (overrides config file)
 - `CCLI_TOKEN` — Personal Access Token (overrides config file)
 - `RUST_LOG` — Tracing level (default: `warn`)
 
-## Config File
+## Config file
 
-Location: `~/.ccli/config.toml`
+Location: `~/.config/ccli/config.toml`
 
 ```toml
 url = "https://confluence.example.com"
@@ -74,6 +124,6 @@ token = "AT-xxxxxxxxxxxx"
 
 ## Testing
 
-- Unit tests embed `tempfile`, `httpmock` for isolated file/HTTP simulation
-- Use `ENV_LOCK: Mutex<()>` + `EnvIsolation` guard to serialize env var mutations
-- Tests verify: config serialization, env var override precedence, atomic saves, permission bits
+- `httpmock` for isolated HTTP simulation; `tempfile` for filesystem tests
+- Tests in `tui/app.rs` use `ratatui::TestBackend` — no real terminal needed
+- Env var tests serialize via `Mutex` guard to avoid cross-test interference
