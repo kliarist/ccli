@@ -555,7 +555,6 @@ async fn handle_edit_page(
         }
     };
 
-
     // Phase 4: PUT to Confluence
     let put_result = update_page(
         client,
@@ -598,7 +597,6 @@ async fn handle_edit_page(
         }
     }
 }
-
 
 /// Extract the space key from a PageDetail.
 ///

@@ -230,8 +230,8 @@ pub async fn handle_edit_typed(
         eprintln!("Tip: install pandoc for Markdown editing. Editing raw storage XML.");
     }
 
-    let new_xml = crate::edit::run_edit_session(&body, &id, raw)
-        .context("Editor session failed")?;
+    let new_xml =
+        crate::edit::run_edit_session(&body, &id, raw).context("Editor session failed")?;
 
     match update_page(
         &client,
@@ -251,8 +251,7 @@ pub async fn handle_edit_typed(
         Err(AppError::Api(msg)) if msg.starts_with("Conflict:") => {
             // D-39: temp file preserved by run_edit_session; print path on stderr
             let ext = if raw { "xml" } else { "md" };
-            let temp_path =
-                std::env::temp_dir().join(format!("ccli-edit-{}.{}", id, ext));
+            let temp_path = std::env::temp_dir().join(format!("ccli-edit-{}.{}", id, ext));
             eprintln!("{}", msg);
             eprintln!(
                 "Your edits saved at {} — re-open to merge manually.",
@@ -402,7 +401,6 @@ pub async fn handle_search(cli: &Cli, cql: &str, limit: u32) -> anyhow::Result<(
     formatter.print(headers, &rows);
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {
