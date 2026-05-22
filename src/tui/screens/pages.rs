@@ -14,14 +14,15 @@ use crate::tui::app::{AppState, PagesBrowseState, StatusStyle, SPINNER_FRAMES};
 
 /// Top-level render function for the Pages / Blog Posts browse view.
 pub fn render_pages(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
-    let has_filter = !state.active_filter.is_empty() || matches!(state.browse_state, AppState::Filtering { .. });
+    let has_filter =
+        !state.active_filter.is_empty() || matches!(state.browse_state, AppState::Filtering { .. });
     let filter_height: u16 = if has_filter { 3 } else { 0 };
 
     let vertical = Layout::vertical([
-        Constraint::Length(3),              // title block (with shortcuts inside)
-        Constraint::Min(0),                 // main body
-        Constraint::Length(filter_height),  // filter panel (only when active)
-        Constraint::Length(1),              // status bar
+        Constraint::Length(3),             // title block (with shortcuts inside)
+        Constraint::Min(0),                // main body
+        Constraint::Length(filter_height), // filter panel (only when active)
+        Constraint::Length(1),             // status bar
     ]);
     let [title_area, body_area, filter_area, status_area] = vertical.areas(area);
 
@@ -47,7 +48,11 @@ fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
         AppState::Loading => "Loading…".to_string(),
         AppState::Browse | AppState::Modal => {
             if !state.active_filter.is_empty() {
-                format!("{} total / {} shown", state.pages.len(), state.visible_count())
+                format!(
+                    "{} total / {} shown",
+                    state.pages.len(),
+                    state.visible_count()
+                )
             } else {
                 format!("{} total", state.pages.len())
             }
@@ -63,12 +68,16 @@ fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
         Span::raw(" "),
         Span::styled(
             kind_label,
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         ),
         Span::styled(" — ", Style::default().fg(Color::DarkGray)),
         Span::styled(
             state.space_key.clone(),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" "),
     ])
@@ -93,12 +102,13 @@ fn render_title(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
     let kb = |k: &'static str| {
         Span::styled(
             format!("<{}>", k),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )
     };
-    let desc = |d: &'static str| {
-        Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray))
-    };
+    let desc =
+        |d: &'static str| Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray));
     let shortcuts = Line::from(vec![
         kb("/"),
         desc("Filter"),
@@ -184,7 +194,10 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
         let msg = if !active_query.is_empty() {
             format!("No matches for \"{}\"", active_query)
         } else {
-            let kind = match state.content_type { ContentType::Page => "pages", ContentType::BlogPost => "blog posts" };
+            let kind = match state.content_type {
+                ContentType::Page => "pages",
+                ContentType::BlogPost => "blog posts",
+            };
             format!("No {}", kind)
         };
         let block = Block::default()
@@ -192,9 +205,14 @@ fn render_list_pane(f: &mut Frame, state: &mut PagesBrowseState, area: Rect) {
             .border_type(BorderType::Plain)
             .border_style(Style::default().fg(Color::DarkGray))
             .padding(Padding::horizontal(1));
-        let p = Paragraph::new(Span::styled(msg, Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM)))
-            .alignment(Alignment::Center)
-            .block(block);
+        let p = Paragraph::new(Span::styled(
+            msg,
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::DIM),
+        ))
+        .alignment(Alignment::Center)
+        .block(block);
         f.render_widget(p, area);
         return;
     }
@@ -330,15 +348,24 @@ fn build_preview_text<'a>(page: &'a Page, detail: Option<&'a PageDetail>) -> Tex
         meta.push(Span::styled(author, Style::default().fg(Color::LightBlue)));
     }
     if !version.is_empty() {
-        if !meta.is_empty() { meta.push(dot()); }
-        meta.push(Span::styled(format!("v{}", version), Style::default().fg(Color::Green)));
+        if !meta.is_empty() {
+            meta.push(dot());
+        }
+        meta.push(Span::styled(
+            format!("v{}", version),
+            Style::default().fg(Color::Green),
+        ));
     }
     if !last_modified.is_empty() {
-        if !meta.is_empty() { meta.push(dot()); }
+        if !meta.is_empty() {
+            meta.push(dot());
+        }
         meta.push(Span::styled(last_modified, label_style));
     }
     if !parent.is_empty() {
-        if !meta.is_empty() { meta.push(dot()); }
+        if !meta.is_empty() {
+            meta.push(dot());
+        }
         meta.push(Span::styled("↳ ", label_style));
         meta.push(Span::styled(parent, label_style));
     }
@@ -428,14 +455,21 @@ fn render_filter_panel(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
             " Filter ",
-            Style::default().fg(border_color).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(border_color)
+                .add_modifier(Modifier::BOLD),
         ));
 
     let line = if typing {
         Line::from(vec![
             Span::raw(" "),
             Span::styled(query.to_string(), Style::default().fg(Color::Cyan)),
-            Span::styled("█", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "█",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ])
     } else {
         Line::from(vec![
@@ -443,7 +477,9 @@ fn render_filter_panel(f: &mut Frame, state: &PagesBrowseState, area: Rect) {
             Span::styled(query.to_string(), Style::default().fg(Color::White)),
             Span::styled(
                 "  · Esc to clear  / to refine",
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::DIM),
             ),
         ])
     };
@@ -467,8 +503,12 @@ fn render_help_modal(f: &mut Frame, full_area: Rect) {
 
     let inner = block.inner(full_area);
 
-    let heading = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
-    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let heading = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
+    let key_style = Style::default()
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
     let desc_style = Style::default().fg(Color::DarkGray);
 
     let row = |k: &'static str, desc: &'static str| -> Line<'static> {

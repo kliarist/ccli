@@ -100,7 +100,10 @@ pub async fn run(_cli: &Cli) -> anyhow::Result<()> {
     config::save(&cfg).context("Failed to save config")?;
 
     if std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none() {
-        println!("\x1b[1;32mConnected as {}\x1b[0m — configuration saved.", display_name);
+        println!(
+            "\x1b[1;32mConnected as {}\x1b[0m — configuration saved.",
+            display_name
+        );
     } else {
         println!("Connected as {} — configuration saved.", display_name);
     }

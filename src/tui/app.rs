@@ -1148,8 +1148,15 @@ mod tests {
         // Esc must revert to the committed "DEV" filter, not the full list.
         app.handle_key(KeyCode::Esc);
         assert_eq!(app.state, AppState::Browse);
-        assert_eq!(app.active_filter, "DEV", "committed filter must be preserved");
-        assert_eq!(app.filtered_indices.len(), 1, "must show only DEV, not all spaces");
+        assert_eq!(
+            app.active_filter, "DEV",
+            "committed filter must be preserved"
+        );
+        assert_eq!(
+            app.filtered_indices.len(),
+            1,
+            "must show only DEV, not all spaces"
+        );
     }
 
     #[test]

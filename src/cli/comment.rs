@@ -200,7 +200,12 @@ mod tests {
         Comment, CommentAuthor, CommentBody, CommentLinks, CommentVersion, StorageBody,
     };
 
-    fn make_comment(id: &str, author: Option<&str>, when: Option<&str>, body: Option<&str>) -> Comment {
+    fn make_comment(
+        id: &str,
+        author: Option<&str>,
+        when: Option<&str>,
+        body: Option<&str>,
+    ) -> Comment {
         Comment {
             id: id.to_string(),
             title: String::new(),
@@ -278,12 +283,15 @@ mod tests {
 
         let rows = build_list_rows(&comments);
 
-        assert_eq!(rows, vec![vec![
-            "42".to_string(),
-            "Alice".to_string(),
-            "2026-05-01".to_string(),
-            "Hello".to_string(),
-        ]]);
+        assert_eq!(
+            rows,
+            vec![vec![
+                "42".to_string(),
+                "Alice".to_string(),
+                "2026-05-01".to_string(),
+                "Hello".to_string(),
+            ]]
+        );
     }
 
     #[test]
@@ -298,12 +306,15 @@ mod tests {
 
         let rows = build_list_rows(&comments);
 
-        assert_eq!(rows, vec![vec![
-            "7".to_string(),
-            String::new(),
-            String::new(),
-            String::new(),
-        ]]);
+        assert_eq!(
+            rows,
+            vec![vec![
+                "7".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ]]
+        );
     }
 
     #[test]

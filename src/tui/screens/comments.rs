@@ -15,9 +15,9 @@ use crate::tui::app::{AppState, CommentsBrowseState, SPINNER_FRAMES};
 /// Top-level render — vertical split: title (with shortcuts), body, status.
 pub fn render_comments(f: &mut Frame, state: &mut CommentsBrowseState, area: Rect) {
     let vertical = Layout::vertical([
-        Constraint::Length(3),  // title block (with shortcuts inside)
-        Constraint::Min(0),     // body
-        Constraint::Length(1),  // status bar
+        Constraint::Length(3), // title block (with shortcuts inside)
+        Constraint::Min(0),    // body
+        Constraint::Length(1), // status bar
     ]);
     let [title_area, body_area, status_area] = vertical.areas(area);
 
@@ -41,12 +41,16 @@ fn render_title(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
         Span::raw(" "),
         Span::styled(
             "Comments",
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         ),
         Span::styled(" — ", Style::default().fg(Color::DarkGray)),
         Span::styled(
             state.page_id.clone(),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" "),
     ])
@@ -71,12 +75,13 @@ fn render_title(f: &mut Frame, state: &CommentsBrowseState, area: Rect) {
     let kb = |k: &'static str| {
         Span::styled(
             format!("<{}>", k),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )
     };
-    let desc = |d: &'static str| {
-        Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray))
-    };
+    let desc =
+        |d: &'static str| Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray));
     let shortcuts = Line::from(vec![
         kb("g/G"),
         desc("Top/Bot"),
@@ -326,8 +331,12 @@ fn render_help_modal(f: &mut Frame, area: Rect) {
 
     let inner = block.inner(area);
 
-    let heading = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
-    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let heading = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
+    let key_style = Style::default()
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
     let desc_style = Style::default().fg(Color::DarkGray);
 
     let row = |k: &'static str, desc: &'static str| -> Line<'static> {

@@ -13,14 +13,15 @@ use crate::tui::app::{App, AppState, SPINNER_FRAMES};
 
 /// Top-level render function for the Spaces browse view.
 pub fn render_spaces(f: &mut Frame, app: &mut App, area: Rect) {
-    let has_filter = !app.active_filter.is_empty() || matches!(app.state, AppState::Filtering { .. });
+    let has_filter =
+        !app.active_filter.is_empty() || matches!(app.state, AppState::Filtering { .. });
     let filter_height: u16 = if has_filter { 3 } else { 0 };
 
     let vertical = Layout::vertical([
-        Constraint::Length(3),              // title block (with shortcuts inside)
-        Constraint::Min(0),                 // main body
-        Constraint::Length(filter_height),  // filter panel (only when active)
-        Constraint::Length(1),              // status bar
+        Constraint::Length(3),             // title block (with shortcuts inside)
+        Constraint::Min(0),                // main body
+        Constraint::Length(filter_height), // filter panel (only when active)
+        Constraint::Length(1),             // status bar
     ]);
     let [title_area, body_area, filter_area, status_area] = vertical.areas(area);
 
@@ -38,7 +39,8 @@ pub fn render_spaces(f: &mut Frame, app: &mut App, area: Rect) {
 
 /// Title block: rounded cyan border with screen name + shortcuts row inside.
 fn render_title(f: &mut Frame, app: &App, area: Rect) {
-    let has_filter = !app.active_filter.is_empty() || matches!(app.state, AppState::Filtering { .. });
+    let has_filter =
+        !app.active_filter.is_empty() || matches!(app.state, AppState::Filtering { .. });
     let subtitle = match &app.state {
         AppState::Loading => "Loading…".to_string(),
         _ if has_filter => format!("{} total / {} shown", app.spaces.len(), app.visible_count()),
@@ -47,7 +49,12 @@ fn render_title(f: &mut Frame, app: &App, area: Rect) {
 
     let left_title = Line::from(vec![
         Span::raw(" "),
-        Span::styled("Spaces", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Spaces",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(" "),
     ])
     .left_aligned();
@@ -71,12 +78,13 @@ fn render_title(f: &mut Frame, app: &App, area: Rect) {
     let kb = |k: &'static str| {
         Span::styled(
             format!("<{}>", k),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         )
     };
-    let desc = |d: &'static str| {
-        Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray))
-    };
+    let desc =
+        |d: &'static str| Span::styled(format!(" {}  ", d), Style::default().fg(Color::DarkGray));
     let shortcuts = Line::from(vec![
         kb("/"),
         desc("Filter"),
@@ -119,8 +127,11 @@ fn render_list_pane(f: &mut Frame, app: &mut App, area: Rect) {
     let inner = block.inner(area);
 
     if app.spaces.is_empty() && matches!(app.state, AppState::Loading) {
-        let loading = Paragraph::new(Span::styled("Loading…", Style::default().fg(Color::DarkGray)))
-            .alignment(Alignment::Center);
+        let loading = Paragraph::new(Span::styled(
+            "Loading…",
+            Style::default().fg(Color::DarkGray),
+        ))
+        .alignment(Alignment::Center);
         f.render_widget(block, area);
         f.render_widget(loading, inner);
         return;
@@ -159,7 +170,9 @@ fn render_list_pane(f: &mut Frame, app: &mut App, area: Rect) {
             let line = Line::from(vec![
                 Span::styled(
                     format!("{:<8}", space.key),
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(format!(" {}", name)),
             ]);
@@ -217,8 +230,12 @@ fn build_preview_text<'a>(
     space: &'a crate::api::space::Space,
     detail: Option<&'a SpaceDetail>,
 ) -> Text<'a> {
-    let label_style = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
-    let dim_style = Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM);
+    let label_style = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
+    let dim_style = Style::default()
+        .fg(Color::DarkGray)
+        .add_modifier(Modifier::DIM);
     let value_style = Style::default();
 
     let make_field = |label: &'static str, value: Option<String>| -> Line<'a> {
@@ -226,18 +243,28 @@ fn build_preview_text<'a>(
             Some(v) if !v.is_empty() => Span::styled(v, value_style),
             _ => Span::styled("—", dim_style),
         };
-        Line::from(vec![Span::styled(format!("{:<14}", label), label_style), val_span])
+        Line::from(vec![
+            Span::styled(format!("{:<14}", label), label_style),
+            val_span,
+        ])
     };
 
     let key_line = Line::from(vec![
         Span::styled(format!("{:<14}", "Key:"), label_style),
-        Span::styled(space.key.clone(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            space.key.clone(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
     ]);
 
     let type_line = Line::from(vec![
         Span::styled(format!("{:<14}", "Type:"), label_style),
         match space.space_type.as_deref() {
-            Some(t) if !t.is_empty() => Span::styled(t.to_string(), Style::default().fg(Color::Magenta)),
+            Some(t) if !t.is_empty() => {
+                Span::styled(t.to_string(), Style::default().fg(Color::Magenta))
+            }
             _ => Span::styled("—", dim_style),
         },
     ]);
@@ -288,14 +315,21 @@ fn render_filter_panel(f: &mut Frame, app: &App, area: Rect) {
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(
             " Filter ",
-            Style::default().fg(border_color).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(border_color)
+                .add_modifier(Modifier::BOLD),
         ));
 
     let line = if typing {
         Line::from(vec![
             Span::raw(" "),
             Span::styled(query.to_string(), Style::default().fg(Color::Cyan)),
-            Span::styled("█", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "█",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ])
     } else {
         Line::from(vec![
@@ -303,7 +337,9 @@ fn render_filter_panel(f: &mut Frame, app: &App, area: Rect) {
             Span::styled(query.to_string(), Style::default().fg(Color::White)),
             Span::styled(
                 "  · Esc to clear  / to refine",
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::DIM),
             ),
         ])
     };
@@ -344,13 +380,20 @@ fn render_help_modal(f: &mut Frame, area: Rect) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(Color::Cyan))
-        .title(Span::styled(" Key Bindings ", Style::default().add_modifier(Modifier::BOLD)))
+        .title(Span::styled(
+            " Key Bindings ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ))
         .padding(Padding::new(2, 2, 1, 1));
 
     let inner = block.inner(area);
 
-    let heading = Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD);
-    let key_style = Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD);
+    let heading = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
+    let key_style = Style::default()
+        .fg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
     let desc_style = Style::default().fg(Color::DarkGray);
 
     // Fixed-width key column so descriptions align vertically.
