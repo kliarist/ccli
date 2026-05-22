@@ -65,22 +65,7 @@ ccli
 
 The default screen lists all accessible spaces. The right pane shows a live preview of the selected space.
 
-```
-╭─ Spaces ─────────────────────────────────────────────────── 8 total ─╮
-│ </> Filter  <Enter> Pages  <o> Open  <g/G> Top/Bot  <?> Help  <q> Quit│
-╰────────────────────────────────────────────────────────────────────────╯
-╭────────────────────────────────────────────────────────────────────────╮
-│  DEV      Developer Docs         │ Key:          INFRA                 │
-│  DESIGN   Design System          │ Name:         Infrastructure        │
-│  ENG      Engineering            │ Type:         global                │
-│> INFRA    Infrastructure         │ Description:  Platform services     │
-│  MOBILE   Mobile Team            │               for all backend teams │
-│  OPS      Operations             │                                     │
-│  QA       Quality Assurance      │ Homepage URL: /display/INFRA/Home   │
-│  RELEASE  Release Management     │                                     │
-╰────────────────────────────────────────────────────────────────────────╯
-  8 spaces
-```
+![Spaces browse](docs/spaces.png)
 
 Press `Enter` to drill into a space and browse its pages.
 
@@ -88,45 +73,13 @@ Press `Enter` to drill into a space and browse its pages.
 
 After pressing `Enter` on a space, the right pane renders the selected page content with styled headings, lists, and code blocks.
 
-```
-╭─ Pages — ENG ───────────────────────────────────────────── 10 total ─╮
-│ </> Filter  <Enter/o> Open  <e> Edit  <c> Comments  <g/G> Top/Bot    │
-╰───────────────────────────────────────────────────────────────────────╯
-╭───────────────────────────────────────────────────────────────────────╮
-│  API Gateway Migration          │ DEPLOYMENT CHECKLIST                │
-│  CI Pipeline Runbook            │ ════════════════════                │
-│  Database Schema v2             │                                     │
-│> Deployment Checklist           │ Pre-flight steps before every       │
-│  Incident Response Playbook     │ production deployment.              │
-│  Monitoring Setup               │                                     │
-│  On-Call Rotation               │   • Verify staging green            │
-│  Release Notes 2.4.0            │   • Confirm rollback plan           │
-│  Service Architecture           │   • Notify on-call engineer         │
-│  Team Onboarding                │   • Check feature flags             │
-╰───────────────────────────────────────────────────────────────────────╯
-  Deployment Checklist · id 2031633
-```
+![Pages browse](docs/pages.png)
 
 ### Fuzzy filter
 
 Press `/` to open the filter panel. Results update in real time as you type. `Esc` cancels and restores the full list; `Enter` commits the filter and keeps the narrowed view while you browse.
 
-```
-╭─ Spaces ─────────────────────────────────── 8 total / 2 shown ─╮
-│ </> Filter  <Enter> Pages  <o> Open  <g/G> Top/Bot  <?> Help   │
-╰─────────────────────────────────────────────────────────────────╯
-╭─────────────────────────────────────────────────────────────────╮
-│> ENG      Engineering            │ Key:          ENG             │
-│  OPS      Operations             │ Name:         Engineering     │
-│                                  │ Type:         global          │
-│                                  │ Description:  —               │
-│                                  │ Homepage URL: /display/ENG    │
-╰─────────────────────────────────────────────────────────────────╯
-╭─ Filter ────────────────────────────────────────────────────────╮
-│  eng█                                                           │
-╰─────────────────────────────────────────────────────────────────╯
-  2 spaces
-```
+![Fuzzy filter](docs/filter.png)
 
 ### ⌨️ Keyboard shortcuts
 
