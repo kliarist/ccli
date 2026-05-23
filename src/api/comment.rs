@@ -205,6 +205,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn list_comments_returns_empty_vec_on_200() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/999/child/comment");
+            then.status(200).json_body(serde_json::json!({
+                "results": [], "start": 0, "limit": 50, "size": 0, "_links": {}
+            }));
+        });
+        let client = test_client(&server.base_url());
+        let result = list_comments(&client, "999").await.expect("ok");
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
     async fn list_comments_returns_auth_error_on_401() {
         let server = MockServer::start();
         server.mock(|when, then| {
@@ -217,19 +231,63 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn add_comment_posts_storage_xml_body() {
+    async fn list_comments_returns_auth_error_on_403() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/123/child/comment");
+            then.status(403);
+        });
+        let client = test_client(&server.base_url());
+        let result = list_comments(&client, "123").await;
+        assert!(matches!(result, Err(AppError::Auth(_))));
+    }
+
+    #[tokio::test]
+    async fn list_comments_returns_api_error_on_500() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/123/child/comment");
+            then.status(500);
+        });
+        let client = test_client(&server.base_url());
+        let result = list_comments(&client, "123").await;
+        assert!(matches!(result, Err(AppError::Api(_))));
+    }
+
+    #[tokio::test]
+    async fn add_comment_posts_full_storage_xml_body() {
         let server = MockServer::start();
         let m = server.mock(|when, then| {
             when.method(POST)
                 .path("/rest/api/content/123/child/comment")
-                .json_body_partial(r#"{"type":"comment"}"#);
+                .json_body(serde_json::json!({
+                    "type": "comment",
+                    "body": {
+                        "storage": {
+                            "value": "<p>hi</p>",
+                            "representation": "storage"
+                        }
+                    }
+                }));
             then.status(200);
         });
         let client = test_client(&server.base_url());
         let result = add_comment(&client, "123", "<p>hi</p>").await;
         assert!(result.is_ok());
         m.assert();
-        // Also verify the xml body content was included
+    }
+
+    #[tokio::test]
+    async fn add_comment_returns_auth_error_on_401() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/rest/api/content/123/child/comment");
+            then.status(401);
+        });
+        let client = test_client(&server.base_url());
+        let result = add_comment(&client, "123", "<p>hi</p>").await;
+        assert!(matches!(result, Err(AppError::Auth(_))));
     }
 
     #[tokio::test]
@@ -243,5 +301,18 @@ mod tests {
         let client = test_client(&server.base_url());
         let result = add_comment(&client, "123", "<p>hi</p>").await;
         assert!(matches!(result, Err(AppError::Auth(_))));
+    }
+
+    #[tokio::test]
+    async fn add_comment_returns_api_error_on_500() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/rest/api/content/123/child/comment");
+            then.status(500);
+        });
+        let client = test_client(&server.base_url());
+        let result = add_comment(&client, "123", "<p>hi</p>").await;
+        assert!(matches!(result, Err(AppError::Api(_))));
     }
 }

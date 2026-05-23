@@ -8,6 +8,7 @@
 
 use anyhow::Context;
 
+use crate::api::space::Space;
 use crate::api::{list_all_spaces, Client};
 use crate::cli::{Cli, SpaceArgs};
 use crate::config;
@@ -27,7 +28,13 @@ pub async fn run(cli: &Cli, _args: &SpaceArgs) -> anyhow::Result<()> {
 
     let formatter = OutputFormatter::new(cli.output_config());
     let headers = &["Key", "Name", "Type"];
-    let rows: Vec<Vec<String>> = spaces
+    formatter.print(headers, &build_rows(&spaces));
+
+    Ok(())
+}
+
+pub(crate) fn build_rows(spaces: &[Space]) -> Vec<Vec<String>> {
+    spaces
         .iter()
         .map(|s| {
             vec![
@@ -36,8 +43,53 @@ pub async fn run(cli: &Cli, _args: &SpaceArgs) -> anyhow::Result<()> {
                 s.space_type.clone().unwrap_or_default(),
             ]
         })
-        .collect();
-    formatter.print(headers, &rows);
+        .collect()
+}
 
-    Ok(())
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::space::{Space, SpaceLinks};
+
+    fn make_space(key: &str, name: &str, space_type: Option<&str>) -> Space {
+        Space {
+            id: 1,
+            key: key.to_string(),
+            name: name.to_string(),
+            space_type: space_type.map(ToString::to_string),
+            links: SpaceLinks {
+                webui: Some(format!("/display/{}", key)),
+                ..Default::default()
+            },
+        }
+    }
+
+    #[test]
+    fn build_rows_has_3_columns_per_space() {
+        let spaces = vec![make_space("DEV", "Development", Some("global"))];
+        let rows = build_rows(&spaces);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0], vec!["DEV", "Development", "global"]);
+    }
+
+    #[test]
+    fn build_rows_null_type_uses_empty_string() {
+        let spaces = vec![make_space("ARCH", "Archive", None)];
+        let rows = build_rows(&spaces);
+        assert_eq!(
+            rows[0][2], "",
+            "null space_type should produce empty string"
+        );
+    }
+
+    #[test]
+    fn build_rows_preserves_order() {
+        let spaces = vec![
+            make_space("AAA", "Alpha", Some("global")),
+            make_space("ZZZ", "Zeta", Some("personal")),
+        ];
+        let rows = build_rows(&spaces);
+        assert_eq!(rows[0][0], "AAA");
+        assert_eq!(rows[1][0], "ZZZ");
+    }
 }

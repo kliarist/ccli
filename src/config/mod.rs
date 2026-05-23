@@ -143,23 +143,27 @@ mod tests {
         }
     }
 
-    /// Clear CCLI_URL and CCLI_TOKEN for the duration of the held guard, restoring
-    /// any pre-existing values on drop. Required because `load_from` peeks at the
-    /// real environment.
+    /// Clear CCLI_URL, CCLI_TOKEN, and CCLI_EMAIL for the duration of the held guard,
+    /// restoring any pre-existing values on drop. Required because `load_from` peeks at
+    /// the real environment.
     struct EnvIsolation {
         prior_url: Option<String>,
         prior_token: Option<String>,
+        prior_email: Option<String>,
     }
 
     impl EnvIsolation {
         fn new() -> Self {
             let prior_url = std::env::var("CCLI_URL").ok();
             let prior_token = std::env::var("CCLI_TOKEN").ok();
+            let prior_email = std::env::var("CCLI_EMAIL").ok();
             std::env::remove_var("CCLI_URL");
             std::env::remove_var("CCLI_TOKEN");
+            std::env::remove_var("CCLI_EMAIL");
             Self {
                 prior_url,
                 prior_token,
+                prior_email,
             }
         }
     }
@@ -173,6 +177,10 @@ mod tests {
             match self.prior_token.take() {
                 Some(v) => std::env::set_var("CCLI_TOKEN", v),
                 None => std::env::remove_var("CCLI_TOKEN"),
+            }
+            match self.prior_email.take() {
+                Some(v) => std::env::set_var("CCLI_EMAIL", v),
+                None => std::env::remove_var("CCLI_EMAIL"),
             }
         }
     }
@@ -334,5 +342,42 @@ mod tests {
             result.is_none(),
             "empty CCLI_URL should not satisfy env-only mode"
         );
+    }
+
+    #[test]
+    fn ccli_email_env_var_overrides_file_value() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let _iso = EnvIsolation::new();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("config.toml");
+        let cfg = Config {
+            url: "https://confluence.example.com".into(),
+            token: "AT-test-token-xyz".into(),
+            email: Some("old@example.com".into()),
+        };
+        save_to(&path, &cfg).expect("save");
+
+        std::env::set_var("CCLI_EMAIL", "new@example.com");
+        let loaded = load_from(&path).expect("load").expect("Some");
+        assert_eq!(loaded.email, Some("new@example.com".to_string()));
+        assert_eq!(loaded.url, cfg.url);
+        assert_eq!(loaded.token, cfg.token);
+    }
+
+    #[test]
+    fn load_from_env_only_includes_email_when_set() {
+        let _g = ENV_LOCK.lock().unwrap();
+        let _iso = EnvIsolation::new();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("nope.toml");
+
+        std::env::set_var("CCLI_URL", "https://myorg.atlassian.net/wiki");
+        std::env::set_var("CCLI_TOKEN", "AT-cloud-token");
+        std::env::set_var("CCLI_EMAIL", "user@myorg.com");
+
+        let result = load_from(&path).expect("load").expect("Some");
+        assert_eq!(result.url, "https://myorg.atlassian.net/wiki");
+        assert_eq!(result.token, "AT-cloud-token");
+        assert_eq!(result.email, Some("user@myorg.com".to_string()));
     }
 }

@@ -117,4 +117,51 @@ mod tests {
         assert!(result.is_err(), "expected editor launch failure to be Err");
         let _ = std::fs::remove_file(&path_guard);
     }
+
+    #[test]
+    fn pandoc_available_does_not_panic() {
+        let _ = pandoc_available();
+    }
+
+    #[test]
+    fn xml_to_markdown_converts_paragraph_when_pandoc_present() {
+        if !pandoc_available() {
+            return;
+        }
+        let md = xml_to_markdown("<p>Hello world</p>").expect("conversion ok");
+        assert!(
+            md.contains("Hello world"),
+            "markdown should contain original text; got: {}",
+            md
+        );
+    }
+
+    #[test]
+    fn markdown_to_xml_converts_paragraph_when_pandoc_present() {
+        if !pandoc_available() {
+            return;
+        }
+        let html = markdown_to_xml("Hello world\n").expect("conversion ok");
+        assert!(
+            html.contains("Hello world"),
+            "html should contain original text; got: {}",
+            html
+        );
+    }
+
+    #[test]
+    fn run_edit_session_raw_returns_original_when_editor_is_true() {
+        // /bin/true exits 0 without modifying the file — content is preserved as-is.
+        if !std::path::Path::new("/bin/true").exists() {
+            return; // not a Unix system
+        }
+        std::env::set_var("EDITOR", "/bin/true");
+        let result = run_edit_session("<p>unchanged</p>", "test-raw-noop", true);
+        std::env::remove_var("EDITOR");
+        assert_eq!(
+            result.expect("ok"),
+            "<p>unchanged</p>",
+            "raw session with no-op editor should return original content"
+        );
+    }
 }

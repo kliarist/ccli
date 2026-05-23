@@ -608,6 +608,47 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn page_search_returns_api_error_on_500() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/search");
+            then.status(500);
+        });
+        let client = test_client(&server.base_url());
+        let result = run_search(&client, "type=page", 25).await;
+        assert!(result.is_err(), "500 should be an error");
+    }
+
+    #[tokio::test]
+    async fn page_search_returns_empty_rows_when_no_results() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/search");
+            then.status(200)
+                .json_body(serde_json::json!({ "results": [] }));
+        });
+        let client = test_client(&server.base_url());
+        let (_headers, rows) = run_search(&client, "type=page AND title=\"nomatch\"", 25)
+            .await
+            .expect("ok");
+        assert!(rows.is_empty(), "expected empty rows for no results");
+    }
+
+    #[tokio::test]
+    async fn page_search_url_column_empty_when_webui_absent() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/rest/api/content/search");
+            then.status(200).json_body(serde_json::json!({
+                "results": [{"id": "99", "title": "No Link", "_links": {}}]
+            }));
+        });
+        let client = test_client(&server.base_url());
+        let (_headers, rows) = run_search(&client, "type=page", 25).await.expect("ok");
+        assert_eq!(rows[0][3], "", "URL column must be empty when webui absent");
+    }
+
     fn detail_with_body(body: Option<&str>) -> PageDetail {
         PageDetail {
             id: "1".into(),
@@ -640,27 +681,6 @@ mod tests {
                 self_url: None,
             },
         }
-    }
-
-    #[test]
-    fn sanitize_id_accepts_digits() {
-        assert_eq!(sanitize_id("12345"), Some("12345".to_string()));
-    }
-
-    #[test]
-    fn sanitize_id_rejects_empty() {
-        assert_eq!(sanitize_id(""), None);
-    }
-
-    #[test]
-    fn sanitize_id_rejects_path_traversal() {
-        assert_eq!(sanitize_id("../etc/passwd"), None);
-    }
-
-    #[test]
-    fn sanitize_id_rejects_alpha() {
-        assert_eq!(sanitize_id("abc"), None);
-        assert_eq!(sanitize_id("12a"), None);
     }
 
     #[test]

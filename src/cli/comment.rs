@@ -227,6 +227,17 @@ mod tests {
     }
 
     #[test]
+    fn escape_xml_escapes_all_three_specials() {
+        assert_eq!(escape_xml("a < b & c > d"), "a &lt; b &amp; c &gt; d");
+    }
+
+    #[test]
+    fn escape_xml_escapes_ampersand_first_to_avoid_double_encoding() {
+        // If & were escaped after < the result would be "&amp;lt;" — must escape & first.
+        assert_eq!(escape_xml("a & b < c"), "a &amp; b &lt; c");
+    }
+
+    #[test]
     fn wrap_plain_text_single_paragraph() {
         assert_eq!(
             wrap_plain_text_to_storage_xml("hello world").unwrap(),
@@ -251,6 +262,14 @@ mod tests {
     }
 
     #[test]
+    fn wrap_plain_text_collapses_internal_newlines_within_paragraph() {
+        assert_eq!(
+            wrap_plain_text_to_storage_xml("line one\nline two").unwrap(),
+            "<p>line one line two</p>"
+        );
+    }
+
+    #[test]
     fn wrap_plain_text_escapes_xml_specials() {
         assert_eq!(
             wrap_plain_text_to_storage_xml("a < b & c > d").unwrap(),
@@ -259,17 +278,17 @@ mod tests {
     }
 
     #[test]
-    fn wrap_plain_text_empty_returns_error() {
-        assert!(wrap_plain_text_to_storage_xml("").is_err());
-        assert!(wrap_plain_text_to_storage_xml("   \n  \n").is_err());
+    fn wrap_plain_text_whitespace_only_paragraph_is_excluded() {
+        assert_eq!(
+            wrap_plain_text_to_storage_xml("real paragraph\n\n   \n\nanother").unwrap(),
+            "<p>real paragraph</p><p>another</p>"
+        );
     }
 
     #[test]
-    fn wrap_plain_text_collapses_internal_newlines_within_paragraph() {
-        assert_eq!(
-            wrap_plain_text_to_storage_xml("line one\nline two").unwrap(),
-            "<p>line one line two</p>"
-        );
+    fn wrap_plain_text_empty_returns_error() {
+        assert!(wrap_plain_text_to_storage_xml("").is_err());
+        assert!(wrap_plain_text_to_storage_xml("   \n  \n").is_err());
     }
 
     #[test]

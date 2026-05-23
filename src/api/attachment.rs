@@ -268,9 +268,21 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn list_attachments_returns_api_error_on_500() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/rest/api/content/123/child/attachment");
+            then.status(500);
+        });
+        let client = test_client(&server.base_url());
+        let result = list_attachments(&client, "123").await;
+        assert!(matches!(result, Err(AppError::Api(_))));
+    }
+
+    #[tokio::test]
     async fn get_attachment_downloads_bytes() {
         let server = MockServer::start();
-        // Mock the listing endpoint
         server.mock(|when, then| {
             when.method(GET)
                 .path("/rest/api/content/123/child/attachment");
@@ -282,13 +294,9 @@ mod tests {
                     "version": null,
                     "_links": {"download": "/download/attachments/123/test.bin"}
                 }],
-                "start": 0,
-                "limit": 50,
-                "size": 1,
-                "_links": {}
+                "start": 0, "limit": 50, "size": 1, "_links": {}
             }));
         });
-        // Mock the download endpoint
         server.mock(|when, then| {
             when.method(GET).path("/download/attachments/123/test.bin");
             then.status(200).body(vec![1u8, 2, 3, 4]);
@@ -301,6 +309,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_attachment_resolves_absolute_download_url() {
+        let server = MockServer::start();
+        let absolute_download = format!("{}/s3/absolute-download-url", server.base_url());
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/rest/api/content/123/child/attachment");
+            then.status(200).json_body(serde_json::json!({
+                "results": [{
+                    "id": "att2",
+                    "title": "abs.bin",
+                    "extensions": null,
+                    "version": null,
+                    "_links": {"download": absolute_download}
+                }],
+                "start": 0, "limit": 50, "size": 1, "_links": {}
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(GET).path("/s3/absolute-download-url");
+            then.status(200).body(vec![0xAAu8, 0xBB]);
+        });
+        let client = test_client(&server.base_url());
+        let result = get_attachment(&client, "123", "abs.bin").await.expect("ok");
+        assert_eq!(result.as_ref(), &[0xAAu8, 0xBB]);
+    }
+
+    #[tokio::test]
     async fn get_attachment_returns_api_error_when_not_found() {
         let server = MockServer::start();
         server.mock(|when, then| {
@@ -308,23 +343,47 @@ mod tests {
                 .path("/rest/api/content/123/child/attachment");
             then.status(200).json_body(serde_json::json!({
                 "results": [],
-                "start": 0,
-                "limit": 50,
-                "size": 0,
-                "_links": {}
+                "start": 0, "limit": 50, "size": 0, "_links": {}
             }));
         });
         let client = test_client(&server.base_url());
         let result = get_attachment(&client, "123", "missing.pdf").await;
         match result {
-            Err(AppError::Api(msg)) => {
-                assert!(
-                    msg.contains("missing.pdf"),
-                    "error should contain filename: {}",
-                    msg
-                );
-            }
+            Err(AppError::Api(msg)) => assert!(
+                msg.contains("missing.pdf"),
+                "error should contain filename: {}",
+                msg
+            ),
             other => panic!("expected AppError::Api, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_attachment_returns_api_error_when_no_download_link() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET)
+                .path("/rest/api/content/123/child/attachment");
+            then.status(200).json_body(serde_json::json!({
+                "results": [{
+                    "id": "att1",
+                    "title": "nolinkfile.bin",
+                    "extensions": null,
+                    "version": null,
+                    "_links": {}
+                }],
+                "start": 0, "limit": 50, "size": 1, "_links": {}
+            }));
+        });
+        let client = test_client(&server.base_url());
+        let result = get_attachment(&client, "123", "nolinkfile.bin").await;
+        match result {
+            Err(AppError::Api(msg)) => assert!(
+                msg.contains("no download link"),
+                "unexpected message: {}",
+                msg
+            ),
+            other => panic!("expected AppError::Api for missing link, got {:?}", other),
         }
     }
 
@@ -337,12 +396,26 @@ mod tests {
                 .header("X-Atlassian-Token", "no-check");
             then.status(200);
         });
-        // Create a temp file to upload
         let tmp = tempfile::NamedTempFile::new().expect("tempfile");
         std::fs::write(tmp.path(), b"test content").expect("write");
         let client = test_client(&server.base_url());
         let result = add_attachment(&client, "123", tmp.path()).await;
         assert!(result.is_ok(), "expected Ok, got {:?}", result);
         m.assert();
+    }
+
+    #[tokio::test]
+    async fn add_attachment_returns_auth_error_on_401() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST)
+                .path("/rest/api/content/123/child/attachment");
+            then.status(401);
+        });
+        let tmp = tempfile::NamedTempFile::new().expect("tempfile");
+        std::fs::write(tmp.path(), b"data").expect("write");
+        let client = test_client(&server.base_url());
+        let result = add_attachment(&client, "123", tmp.path()).await;
+        assert!(matches!(result, Err(AppError::Auth(_))));
     }
 }
