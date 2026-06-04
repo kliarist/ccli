@@ -14,7 +14,6 @@ use cli::{Cli, Commands, SpaceCommands};
 
 #[tokio::main]
 async fn main() {
-    // RUST_LOG-driven tracing init (D-05). Default to `warn` if RUST_LOG unset.
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn")),
@@ -22,9 +21,7 @@ async fn main() {
         .init();
 
     if let Err(err) = run().await {
-        // Walk the full anyhow chain so any `.context("...")` wrapper does not
-        // defeat AppError category dispatch (D-04). If no AppError is in the
-        // chain, fall back to AppError::Api with the top-level message.
+        // Walk the full anyhow chain; .context() wrappers must not hide the inner AppError.
         let app_err = err
             .chain()
             .find_map(|e| e.downcast_ref::<AppError>())
@@ -61,14 +58,11 @@ async fn run() -> anyhow::Result<()> {
         Some(Commands::Blog(ref args)) => cli::blog::run(&cli, args).await,
         Some(Commands::Comment(ref args)) => cli::comment::run(&cli, args).await,
         Some(Commands::Attachment(ref args)) => cli::attachment::run(&cli, args).await,
-        None => tui::run().await, // D-10: bare ccli launches TUI
+        None => tui::run().await,
     }
 }
 
-/// Pure mapping from AppError variant -> remediation hint string.
-///
-/// Exposed (crate-private) so unit tests can verify category dispatch
-/// without spinning up stderr capture. This is the heart of D-04.
+/// Maps an AppError variant to a user-facing remediation hint.
 fn hint_for(err: &AppError) -> &'static str {
     match err {
         AppError::Auth(_) => "Run 'ccli init' to reconfigure your credentials.",
@@ -78,9 +72,7 @@ fn hint_for(err: &AppError) -> &'static str {
     }
 }
 
-/// Two-line stderr error format per D-04:
-///   line 1: `Error: <message>`  (red bold prefix when stderr is a terminal)
-///   line 2: remediation hint   (yellow when stderr is a terminal)
+/// Print a two-line error to stderr: message + remediation hint.
 fn handle_error(err: &AppError) {
     if std::io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none() {
         eprintln!("\x1b[1;31mError:\x1b[0m {}", err);
@@ -127,10 +119,6 @@ mod tests {
         );
     }
 
-    /// Closes the loop on B-02: the chain walk used in main() must recover
-    /// the inner AppError even when anyhow::Context has wrapped it. If this
-    /// test fails, every `.context("...")` call in downstream plans would
-    /// silently demote category dispatch to the Api fallback hint.
     #[test]
     fn chain_walk_recovers_inner_app_error_through_context_wrapper() {
         use anyhow::Context;
@@ -151,8 +139,6 @@ mod tests {
         }
     }
 
-    /// Sanity check: when there is NO AppError anywhere in the chain, the
-    /// fallback to AppError::Api(err.to_string()) is what main() will use.
     #[test]
     fn chain_walk_returns_none_when_no_app_error_present() {
         let plain: anyhow::Error = anyhow::anyhow!("just a string error");

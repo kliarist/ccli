@@ -1,16 +1,7 @@
 //! Storage XML to plain-text converter — shared by TUI preview pane and `ccli page view`.
 //!
-//! Locked decisions implemented:
-//! - D-36: ccli page view prints stripped plain text — paragraphs as text, headings as
-//!   uppercase lines, code blocks indented two spaces.
-//! - D-42: TUI preview pane uses the same function so behavior is consistent.
-//! - Pitfall 7: ac:* / ri:* namespaced macro tags are stripped (treated as unknown tags);
-//!   inner text is retained.
-//!
-//! Security:
-//! - Input is Confluence storage XML returned by an authenticated API call. quick-xml's
-//!   event reader handles malformed XML by stopping and returning the partial output —
-//!   no panics, no buffer overruns.
+//! ac:* / ri:* namespaced macro tags are stripped; their inner text is retained.
+//! Malformed XML stops the reader and returns partial output — no panics.
 
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::Event;

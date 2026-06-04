@@ -1,18 +1,8 @@
 //! `ccli page` subcommand handlers.
 //!
-//! Locked decisions implemented:
-//! - D-34: space_key is required positional argument for `page list` (parsed in cli/mod.rs)
-//! - D-36: `page view` prints stripped plain text to stdout via strip_storage_xml
-//! - D-38: `page create` uses CLI flags with dialoguer fallback
-//! - D-40: `page create` template body is `<p>Start writing here...</p>`
-//! - D-39: 409 conflict preserves temp file and prints path on stderr
-//! - D-41: `page edit` opens $EDITOR (also used by TUI 'e' keybinding in Plan 06)
-//! - D-37: `blog` subcommand delegates here with ContentType::BlogPost
-//!
 //! Security:
-//! - Page IDs from CLI are validated digits-only before constructing /tmp paths
-//!   (prevents path traversal via crafted ID).
-//! - $EDITOR is launched via Command::new(editor).arg(path).status() — never via shell.
+//! - Page IDs are validated digits-only before constructing /tmp paths (path traversal).
+//! - $EDITOR is launched via Command::new(editor).arg(path) — never via shell.
 
 use anyhow::Context;
 use dialoguer::theme::ColorfulTheme;
@@ -26,7 +16,6 @@ use crate::cli::{sanitize_id, Cli, PageArgs, PageCommands};
 use crate::config;
 use crate::output::{strip_storage_xml, OutputFormatter};
 
-/// Storage XML template for `ccli page create` and `ccli blog create` (D-40).
 const CREATE_TEMPLATE: &str = "<p>Start writing here...</p>";
 
 /// Top-level dispatcher for `ccli page` subcommands.
@@ -59,9 +48,6 @@ pub async fn run(cli: &Cli, args: &PageArgs) -> anyhow::Result<()> {
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 /// `ccli page list <KEY>` / `ccli blog list <KEY>` — table output.
-///
-/// D-35 TUI dispatch is wired in plan 03-06 (requires changes to tui::run signature).
-/// Plan 05 always prints a table — correct behavior when piped, deliberate gap when TTY.
 pub async fn handle_list_typed(
     cli: &Cli,
     space_key: &str,
@@ -249,7 +235,6 @@ pub async fn handle_edit_typed(
             Ok(())
         }
         Err(AppError::Api(msg)) if msg.starts_with("Conflict:") => {
-            // D-39: temp file preserved by run_edit_session; print path on stderr
             let ext = if raw { "xml" } else { "md" };
             let temp_path = std::env::temp_dir().join(format!("ccli-edit-{}.{}", id, ext));
             eprintln!("{}", msg);
@@ -320,9 +305,7 @@ struct SearchResultLinks {
     webui: Option<String>,
 }
 
-/// `ccli page search "<CQL>" [--limit N]` — D-45: ALWAYS table, no TUI dispatch.
-/// D-46: 4 columns (Title, ID, Space, URL), default limit 25.
-/// D-47: CQL is a positional argument.
+/// `ccli page search "<CQL>" [--limit N]` — always table output.
 pub async fn handle_search(cli: &Cli, cql: &str, limit: u32) -> anyhow::Result<()> {
     let cfg = config::load_or_error()
         .map_err(anyhow::Error::from)
@@ -334,7 +317,6 @@ pub async fn handle_search(cli: &Cli, cql: &str, limit: u32) -> anyhow::Result<(
         client.base_url().trim_end_matches('/'),
     );
     let limit_str = limit.to_string();
-    // WR-05: .query() builder percent-encodes user-supplied CQL safely.
     let resp = client
         .inner()
         .get(&url)

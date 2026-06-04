@@ -1,15 +1,6 @@
 //! Confluence Space API client.
 //!
-//! Locked decisions implemented:
-//! - D-14: pre-fetch all spaces on TUI launch (list_all_spaces)
-//! - D-17: ccli space list fetches all pages (same walk as D-14)
-//! - D-18: preview pane shows space metadata only (get_space_detail)
-//! - D-19: 150ms debounce + session cache (types defined here; debounce logic in tui/app.rs)
-//! - D-24: URL resolved from _links.webui, never hand-built
-//!
-//! Security:
-//! - Token NEVER appears in tracing logs.
-//! - #[instrument(skip(client))] applied to all public async functions.
+//! Security: token never appears in tracing logs; #[instrument(skip(client))] on all async fns.
 
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
@@ -25,7 +16,7 @@ pub struct SpaceListResponse {
     pub results: Vec<Space>,
     pub start: u32,
     pub limit: u32,
-    pub size: u32, // count of results on THIS page (not total) — Pitfall 7
+    pub size: u32, // count on THIS page, not total
     #[serde(rename = "_links")]
     pub links: SpaceListLinks,
 }
@@ -52,7 +43,7 @@ pub struct Space {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct SpaceLinks {
-    pub webui: Option<String>, // relative path e.g. "/display/DEV" — Pitfall 3
+    pub webui: Option<String>, // relative path e.g. "/display/DEV"
     #[serde(rename = "self")]
     pub self_url: Option<String>,
 }
@@ -94,11 +85,8 @@ pub struct SpaceHomepage {
 
 // ─── API functions ─────────────────────────────────────────────────────────────
 
-/// Fetch all spaces from GET /rest/api/space, walking all pages.
-///
-/// Pagination: walks until `_links.next` is absent OR `size < limit`
-/// (RESEARCH.md Pattern 5, Pitfall 7 — `size` is per-page count, not total).
-/// Returns results sorted by key ascending (D-17, matches jira-cli and Confluence UI defaults).
+/// Fetch all spaces from GET /rest/api/space, walking pagination until `_links.next` is absent.
+/// Returns results sorted by key ascending.
 #[instrument(skip(client))]
 pub async fn list_all_spaces(client: &Client) -> Result<Vec<Space>, AppError> {
     let mut all: Vec<Space> = Vec::new();
@@ -152,15 +140,11 @@ pub async fn list_all_spaces(client: &Client) -> Result<Vec<Space>, AppError> {
         }
     }
 
-    // D-17: sort by key ascending
     all.sort_by(|a, b| a.key.cmp(&b.key));
     Ok(all)
 }
 
 /// Fetch detail for a single space: GET /rest/api/space/{key}?expand=description.plain,homepage
-///
-/// D-18: preview pane shows space metadata only (key, name, description, homepage title).
-/// D-19: caller is responsible for 150ms debounce; result should be cached in preview_cache.
 #[instrument(skip(client))]
 pub async fn get_space_detail(client: &Client, key: &str) -> Result<SpaceDetail, AppError> {
     let url = format!(

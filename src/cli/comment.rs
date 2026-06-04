@@ -1,14 +1,8 @@
 //! `ccli comment` subcommand handlers.
 //!
-//! Locked decisions implemented:
-//! - D-51: $EDITOR receives plain text, NOT raw storage XML (intentional UX divergence from D-40).
-//! - D-52: blank-line-separated paragraphs → `<p>...</p>` blocks before POST.
-//! - D-53: editor template is empty (no placeholder).
-//!
 //! Security:
-//! - page_id is validated digits-only before constructing /tmp paths (T-03-14).
-//! - $EDITOR is launched via Command::new(editor).arg(path) — never via shell (T-03-EDITOR).
-//! - PAT is in Client only — no #[instrument] here (CLI doesn't emit traces).
+//! - page_id is validated digits-only before constructing /tmp paths (path traversal).
+//! - $EDITOR is launched via Command::new(editor).arg(path) — never via shell.
 
 use anyhow::Context;
 
@@ -51,7 +45,6 @@ async fn handle_list(cli: &Cli, page_id: &str) -> anyhow::Result<()> {
 
 /// `ccli comment add <PAGE-ID>` — open $EDITOR, wrap, POST.
 async fn handle_add(page_id: &str) -> anyhow::Result<()> {
-    // T-03-14: digits-only validation prevents path traversal in /tmp/ccli-comment-{id}.txt
     let id = sanitize_id(page_id)
         .ok_or_else(|| AppError::Api(format!("Invalid id: must be numeric (got {:?})", page_id)))?;
 
@@ -60,7 +53,6 @@ async fn handle_add(page_id: &str) -> anyhow::Result<()> {
         .context("No configuration found. Run 'ccli init' to configure.")?;
     let client = Client::new(&cfg)?;
 
-    // D-53: empty template — user starts typing immediately.
     let temp_path = std::env::temp_dir().join(format!("ccli-comment-{}.txt", id));
     std::fs::write(&temp_path, "")
         .with_context(|| format!("Failed to write template to {:?}", temp_path))?;
@@ -68,7 +60,6 @@ async fn handle_add(page_id: &str) -> anyhow::Result<()> {
     let plain_text = std::fs::read_to_string(&temp_path)
         .with_context(|| format!("Failed to read comment from {:?}", temp_path))?;
 
-    // D-52: wrap (and validate non-empty)
     let xml = match wrap_plain_text_to_storage_xml(&plain_text) {
         Ok(x) => x,
         Err(_) => {
@@ -104,9 +95,9 @@ fn launch_editor(path: &std::path::Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// D-52: wrap plain-text comment into storage XML.
+/// Wrap plain-text comment into Confluence storage XML.
 ///
-/// Rules (per 04-UI-SPEC Plain-Text Wrapping Contract):
+/// Rules:
 ///  1. Split on blank lines (one or more consecutive `\n` after trimming whitespace-only).
 ///  2. Each non-empty paragraph → `<p>{escape(text)}</p>`; internal `\n` → space.
 ///  3. Escape order: `&` → `&amp;`, `<` → `&lt;`, `>` → `&gt;`.

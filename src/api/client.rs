@@ -168,7 +168,7 @@ pub async fn test_connection(
 
     match resp.status().as_u16() {
         200 => {
-            // W-04: treat empty/missing displayName as auth failure (Pitfall 2 / CONFSERVER-87540).
+            // Treat empty/missing displayName as auth failure (CONFSERVER-87540 — WAF/captcha can return 200 with no body).
             let body: serde_json::Value = resp.json().await.map_err(|e| {
                 AppError::Api(format!("Failed to parse /user/current response: {}", e))
             })?;
@@ -339,7 +339,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_returns_network_error_on_unreachable_host() {
-        // W-03: Use localhost port 1 (reserved, immediate TCP connection-refused, no DNS lookup).
+        // Port 1 is reserved — gives immediate connection-refused without DNS lookup.
         let result = test_connection("http://127.0.0.1:1", "tok", None).await;
         match result {
             Err(AppError::Network(_)) => {} // ok
@@ -349,9 +349,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_returns_api_error_on_200_with_empty_body() {
-        // W-04: Pitfall 2 (CONFSERVER-87540) — 200 + empty body (e.g. WAF/captcha page) must
-        // surface as AppError::Api with a parse-error message, not silently succeed or produce
-        // a misleading auth error.
+        // CONFSERVER-87540: 200 + empty body (WAF/captcha) must surface as AppError::Api.
         let server = MockServer::start();
         let _m = server.mock(|when, then| {
             when.method(GET).path("/rest/api/user/current");
@@ -366,7 +364,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_returns_auth_error_on_200_with_missing_display_name() {
-        // W-04: 200 with `{}` (no displayName) must also fail (Pitfall 2 mitigation).
+        // 200 with `{}` (no displayName) must also fail — same CONFSERVER-87540 mitigation.
         let server = MockServer::start();
         let _m = server.mock(|when, then| {
             when.method(GET).path("/rest/api/user/current");

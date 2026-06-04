@@ -1,17 +1,6 @@
 //! Confluence Content API client — pages and blog posts.
 //!
-//! Locked decisions implemented:
-//! - D-33: list returned sorted by title ascending (sort happens in list_all_pages)
-//! - D-37: ContentType enum drives type=page vs type=blogpost on every endpoint
-//! - D-39: 409 on update returns AppError::Api with message containing "Conflict"
-//! - D-43: PageDetail body included via expand=body.storage,version,ancestors
-//! - Pitfall 1: update_page always sends current_version + 1 (caller passes current_version)
-//! - Pitfall 2: update_page requires title arg even when unchanged
-//! - Pitfall 5: create_page omits "ancestors" for ContentType::BlogPost
-//! - Pitfall 6: pagination uses `_links.next` absence + `size < limit` (size is per-page)
-//!
-//! Security:
-//! - PAT NEVER appears in tracing output. #[instrument(skip(client))] on every async fn.
+//! Security: PAT never appears in tracing output; #[instrument(skip(client))] on every async fn.
 
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
@@ -45,7 +34,7 @@ pub struct ContentListResponse {
     pub results: Vec<Page>,
     pub start: u32,
     pub limit: u32,
-    pub size: u32, // count on THIS page, not total — Pitfall 6
+    pub size: u32, // count on THIS page, not total
     #[serde(rename = "_links")]
     pub links: ContentListLinks,
 }
@@ -137,12 +126,8 @@ pub struct StorageBody {
 
 // ─── API functions ─────────────────────────────────────────────────────────────
 
-/// Fetch all pages or blog posts in a space, walking all pagination pages.
-///
-/// Endpoint: GET /rest/api/content?spaceKey={K}&type={page|blogpost}&start={N}&limit=50
-///                                 &expand=version,ancestors
-/// Pagination: stop when `_links.next` is absent OR `size < limit` (Pitfall 6).
-/// Result is sorted by title ascending (D-33).
+/// Fetch all pages or blog posts in a space, walking pagination until `_links.next` is absent.
+/// Returns results sorted by title ascending.
 #[allow(dead_code)]
 #[instrument(skip(client))]
 pub async fn list_all_pages(
@@ -155,8 +140,7 @@ pub async fn list_all_pages(
     let limit = 250u32;
 
     loop {
-        // WR-05: use .query() builder so reqwest percent-encodes all values,
-        // preventing query-string injection via crafted space keys (e.g. "DEV&type=blogpost").
+        // Use .query() so reqwest percent-encodes values, preventing injection via crafted space keys.
         let base = format!(
             "{}/rest/api/content",
             client.base_url().trim_end_matches('/'),
@@ -211,14 +195,11 @@ pub async fn list_all_pages(
         }
     }
 
-    // D-33: sort by title ascending
     all.sort_by(|a, b| a.title.cmp(&b.title));
     Ok(all)
 }
 
 /// Fetch a single page or blog post with body, version, and ancestors.
-///
-/// Endpoint: GET /rest/api/content/{id}?expand=body.storage,version,ancestors,space (D-43)
 #[allow(dead_code)]
 #[instrument(skip(client))]
 pub async fn get_page_detail(client: &Client, page_id: &str) -> Result<PageDetail, AppError> {

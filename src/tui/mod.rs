@@ -1,20 +1,5 @@
 //! TUI shell — terminal lifecycle, event loop, and top-level dispatch.
 //!
-//! Locked decisions implemented:
-//! - D-10: bare `ccli` launches this TUI on the Spaces browse view
-//! - D-12: `q` always quits; `Esc` closes overlays (filter/modal) or quits at top-level
-//! - D-13: static help bar + `?` modal
-//! - D-14: pre-fetch all spaces on launch with spinner
-//! - D-19: 150ms debounce before preview fetch; session cache in App
-//! - D-22: use `open` crate for browser launch
-//! - D-23: SSH/headless fallback — suspend TUI, print URL, await keypress, restore
-//! - D-24: URL from _links.webui via resolve_webui_url()
-//! - D-30: Enter drills into PagesBrowse; Esc pops back to SpacesBrowse
-//! - D-31: screen_stack render dispatch (Plan 06)
-//! - D-32: Enter == o on PagesBrowse → open page URL
-//! - D-41: e on PagesBrowse → suspend TUI, $EDITOR, PUT, restore
-//! - D-43: 150ms debounce + preview cache on PagesBrowse (Plan 06)
-//!
 //! Terminal lifecycle:
 //! - ratatui::init() handles raw mode, alternate screen, AND panic hook atomically.
 //! - ratatui::restore() undoes all of it — always called even on error.
@@ -47,15 +32,7 @@ use crate::tui::screens::comments::render_comments;
 use crate::tui::screens::pages::render_pages;
 use crate::tui::screens::spaces::render_spaces;
 
-/// TUI entry point. Called by main.rs when no subcommand is given (D-10).
-///
-/// Lifecycle:
-/// 1. Load config (error if missing — user must run `ccli init` first)
-/// 2. Build Client
-/// 3. Spawn async task to pre-fetch all spaces (D-14)
-/// 4. ratatui::init() — raw mode + alt screen + panic hook
-/// 5. Run event loop (async, using spawn_blocking for poll to avoid blocking tokio executor)
-/// 6. ratatui::restore() — always, even on error
+/// TUI entry point. Called by main when no subcommand is given.
 pub async fn run() -> anyhow::Result<()> {
     let config = config::load_or_error()
         .map_err(anyhow::Error::from)
@@ -66,8 +43,7 @@ pub async fn run() -> anyhow::Result<()> {
     let client = Client::new(&config)?;
     let base_url = client.base_url().to_string();
 
-    // Spawn the initial space list fetch before entering the TUI (D-14).
-    // Client is cloned (cheap — reqwest::Client is Arc-backed).
+    // Spawn space list fetch before entering the TUI; Client clone is cheap (Arc-backed).
     let (spaces_tx, spaces_rx) = oneshot::channel::<Result<Vec<Space>, AppError>>();
     let fetch_client = client.clone();
     tokio::spawn(async move {
@@ -109,7 +85,7 @@ async fn run_app(
         spaces_from_cache = true;
     }
 
-    // WR-03: wrap in Option so we stop polling once the channel delivers its value.
+    // Wrap in Option so we stop polling once the channel delivers its value.
     let mut spaces_rx: Option<oneshot::Receiver<Result<Vec<Space>, AppError>>> = Some(spaces_rx);
 
     // Channel for preview detail fetches — buffer 4 to avoid blocking spawned tasks
@@ -130,7 +106,6 @@ async fn run_app(
         mpsc::channel::<(String, Result<PageDetail, AppError>)>(4);
 
     loop {
-        // D-31: route render based on top of screen_stack.
         terminal.draw(|f| match app.screen_stack.last_mut() {
             Some(Screen::CommentsBrowse { state, .. }) => {
                 render_comments(f, state.as_mut(), f.area());
@@ -143,9 +118,7 @@ async fn run_app(
             }
         })?;
 
-        // Check for completed space list fetch (non-blocking try_recv).
-        // WR-03: poll only while the Option is Some; set to None after receiving
-        // to avoid 6000+ no-op try_recv calls on a closed channel.
+        // Check for completed space list fetch; set to None after receiving to stop polling.
         if let Some(rx) = spaces_rx.as_mut() {
             if let Ok(fetch_result) = rx.try_recv() {
                 spaces_rx = None; // stop polling
@@ -178,7 +151,7 @@ async fn run_app(
             app.cache_detail(key, detail);
         }
 
-        // Phase 3: drain pages list fetch results (D-30, PAGE-01)
+        // Drain pages list fetch results.
         while let Ok((space_key, fetch_result)) = pages_list_rx.try_recv() {
             // Find the matching PagesBrowse screen (most recently pushed) and update.
             for screen in app.screen_stack.iter_mut().rev() {
@@ -221,14 +194,14 @@ async fn run_app(
             }
         }
 
-        // Phase 3: drain pages preview fetch results (D-43)
+        // Drain pages preview fetch results.
         while let Ok((page_id, Ok(detail))) = pages_preview_rx.try_recv() {
             if let Some(Screen::PagesBrowse { state, .. }) = app.screen_stack.last_mut() {
                 state.cache_detail(page_id, detail);
             }
         }
 
-        // Phase 4: drain comments list fetch results (D-48)
+        // Drain comments list fetch results.
         while let Ok((page_id, fetch_result)) = comments_list_rx.try_recv() {
             for screen in app.screen_stack.iter_mut().rev() {
                 if let Screen::CommentsBrowse {
@@ -247,7 +220,7 @@ async fn run_app(
             }
         }
 
-        // If a preview fetch is pending (set by tick() after 150ms debounce), spawn it (D-19)
+        // Spawn pending preview fetch (set by tick() after 150ms debounce).
         if let Some(key) = app.pending_preview_key.take() {
             let fetch_client = client.clone();
             let tx = preview_tx.clone();
@@ -258,9 +231,7 @@ async fn run_app(
             });
         }
 
-        // Phase 3: tick pages screen + dispatch pending preview fetch
         if let Some(Screen::PagesBrowse { state, .. }) = app.screen_stack.last_mut() {
-            // Tick: advance spinner, fire debounce → set pending_preview_id
             state.tick();
             if let Some(id) = state.pending_preview_id.take() {
                 let fetch_client = client.clone();
@@ -273,12 +244,11 @@ async fn run_app(
             }
         }
 
-        // Phase 4: tick comments screen for spinner animation (CMNT-01)
         if let Some(Screen::CommentsBrowse { state, .. }) = app.screen_stack.last_mut() {
             state.tick();
         }
 
-        // Poll for key/mouse events with 100ms timeout (drives spinner tick, RESEARCH.md Pitfall 4)
+        // Poll for key/mouse events with 100ms timeout (drives spinner tick).
         if event::poll(Duration::from_millis(100))? {
             match event::read()? {
                 Event::Mouse(mouse) => {
@@ -335,11 +305,8 @@ async fn run_app(
                     match action {
                         KeyAction::Quit => break,
                         KeyAction::OpenBrowser(payload) => {
-                            // Two contexts:
-                            //   - Top is PagesBrowse: payload is a webui PATH (D-32, WR-02).
-                            //     Resolve and open directly here.
-                            //   - Top is SpacesBrowse / empty: payload is a space key.
-                            //     Existing handle_open_browser resolves it from app.spaces.
+                            // PagesBrowse: payload is a webui PATH — resolve and open directly.
+                            // SpacesBrowse / empty: payload is a space key — resolve from app.spaces.
                             if matches!(app.screen_stack.last(), Some(Screen::PagesBrowse { .. })) {
                                 handle_open_page_browser(&payload, &base_url, terminal)?;
                             } else {
@@ -347,9 +314,7 @@ async fn run_app(
                             }
                         }
                         KeyAction::DrillDown(space_key) => {
-                            // D-30: push PagesBrowse and spawn list_all_pages fetch.
-                            // If a fresh disk cache exists for this space, populate it
-                            // immediately so the user sees content without a spinner.
+                            // Populate from disk cache immediately if available, then spawn network fetch.
                             let new_state = Box::new(PagesBrowseState::new(
                                 space_key.clone(),
                                 ContentType::Page,
@@ -379,13 +344,10 @@ async fn run_app(
                             });
                         }
                         KeyAction::PopScreen => {
-                            // D-30: Esc on PagesBrowse → pop back to SpacesBrowse
                             app.screen_stack.pop();
                         }
                         KeyAction::EditPage(page_id) => {
-                            // D-41: suspend TUI, run editor, PUT, restore TUI
-                            // CR-02: read content_type from the active screen so blog posts
-                            // are updated as "blogpost", not "page".
+                            // Read content_type from the active screen so blog posts are updated as "blogpost".
                             let ct = app
                                 .screen_stack
                                 .last()
@@ -400,7 +362,6 @@ async fn run_app(
                             handle_edit_page(&mut app, &client, &page_id, ct, terminal).await;
                         }
                         KeyAction::DrillDownComments(page_id) => {
-                            // D-49: push CommentsBrowse and spawn list_comments fetch
                             let new_state = Box::new(CommentsBrowseState::new(page_id.clone()));
                             app.screen_stack.push(Screen::CommentsBrowse {
                                 page_id: page_id.clone(),
@@ -420,7 +381,6 @@ async fn run_app(
                 _ => {}
             }
         } else {
-            // Timeout — advance spinner frame and check 150ms debounce (D-19)
             app.tick();
         }
     }
@@ -428,22 +388,17 @@ async fn run_app(
     Ok(())
 }
 
-/// Open the selected space in the system browser (D-22, D-23, D-24).
+/// Open the selected space in the system browser.
 ///
-/// URL is resolved from _links.webui (D-24) via resolve_webui_url — never hand-built.
-///
-/// SSH/headless fallback (D-23): if open::that() fails, suspend TUI, print URL to stderr,
+/// URL is resolved from _links.webui via resolve_webui_url — never hand-built.
+/// SSH/headless fallback: if open::that() fails, suspend TUI, print URL to stderr,
 /// wait for a keypress, then re-enter TUI.
-///
-/// Security: URL is a Confluence page URL joined from base_url (config) + webui (API).
-/// URL is passed to the OS browser via open::that(), not to a shell (T-02-19).
 fn handle_open_browser(
     app: &mut App,
     space_key: &str,
     base_url: &str,
     terminal: &mut ratatui::DefaultTerminal,
 ) -> anyhow::Result<()> {
-    // Resolve the absolute URL from _links.webui (D-24) — never hand-build from key
     let space = app
         .list_state
         .selected()
@@ -464,14 +419,12 @@ fn handle_open_browser(
     match open::that(&url) {
         Ok(_) => {}
         Err(_) => {
-            // D-23: SSH/headless fallback — suspend TUI, print URL to stderr, await keypress, restore
+            // SSH/headless fallback: suspend TUI, print URL, await keypress, restore.
             ratatui::restore();
             eprintln!("Browser unavailable — open this URL manually:");
             eprintln!("  {}", url);
             eprintln!();
             eprintln!("Press any key to continue.");
-
-            // Block-read one keypress (URL is non-sensitive Confluence page URL — T-02-17)
             loop {
                 if event::poll(Duration::from_secs(60))? {
                     if let Event::Key(k) = event::read()? {
@@ -493,12 +446,10 @@ fn handle_open_browser(
     Ok(())
 }
 
-/// Open a page's webui URL in the system browser (D-22, D-23, D-24).
+/// Open a page's webui URL in the system browser.
 ///
-/// Unlike `handle_open_browser` which resolves a space key against `app.spaces`,
-/// the pages variant receives the webui PATH directly from `PagesBrowseState`
-/// (which read it from the API response — D-24). The path is joined with
-/// `base_url` here to produce the absolute URL.
+/// Unlike `handle_open_browser`, the path comes directly from the API response
+/// and is joined with `base_url` here to produce the absolute URL.
 fn handle_open_page_browser(
     webui_path: &str,
     base_url: &str,
@@ -508,7 +459,7 @@ fn handle_open_page_browser(
     match open::that(&url) {
         Ok(_) => Ok(()),
         Err(_) => {
-            // D-23: SSH/headless fallback — suspend TUI, print URL, await keypress, restore.
+            // SSH/headless fallback: suspend TUI, print URL, await keypress, restore.
             ratatui::restore();
             eprintln!("Browser unavailable — open this URL manually:");
             eprintln!("  {}", url);
@@ -531,11 +482,10 @@ fn handle_open_page_browser(
     }
 }
 
-/// D-41 editor workflow: suspend TUI, fetch current XML, $EDITOR, PUT, restore TUI.
+/// Suspend TUI, fetch current XML, open $EDITOR, PUT to Confluence, restore TUI.
 ///
-/// Errors are surfaced via `state.status_message` on the top PagesBrowse screen
-/// (Success / Error). The TUI is ALWAYS restored on exit, even on error
-/// (Pitfall 4 from RESEARCH.md).
+/// Errors are surfaced via `state.status_message` on the top PagesBrowse screen.
+/// The TUI is ALWAYS restored on exit, even on error.
 async fn handle_edit_page(
     app: &mut App,
     client: &Client,
@@ -543,7 +493,7 @@ async fn handle_edit_page(
     content_type: ContentType,
     terminal: &mut ratatui::DefaultTerminal,
 ) {
-    // Validate id is digits-only (path traversal mitigation — T-03-20)
+    // Validate id is digits-only to prevent path traversal in /tmp paths.
     if page_id.is_empty() || !page_id.chars().all(|c| c.is_ascii_digit()) {
         set_pages_status(
             app,
@@ -553,7 +503,7 @@ async fn handle_edit_page(
         return;
     }
 
-    // Phase 1: fetch detail BEFORE suspending — keep TUI responsive on slow networks.
+    // Fetch detail BEFORE suspending — keeps TUI responsive on slow networks.
     let detail = match get_page_detail(client, page_id).await {
         Ok(d) => d,
         Err(e) => {
@@ -597,13 +547,10 @@ async fn handle_edit_page(
 
     let using_pandoc = crate::edit::pandoc_available();
 
-    // Phase 2: suspend TUI — ratatui::restore() handles raw mode + alt screen + panic hook.
     ratatui::restore();
 
-    // Always restore the TUI before returning, no matter what fails (Pitfall 4).
+    // Always restore the TUI before returning, no matter what fails.
     let editor_result = crate::edit::run_edit_session(&body_xml, page_id, false);
-
-    // Phase 3: regardless of editor outcome, re-enter the TUI before any further work.
     *terminal = ratatui::init();
 
     let new_xml = match editor_result {
@@ -614,7 +561,6 @@ async fn handle_edit_page(
         }
     };
 
-    // Phase 4: PUT to Confluence
     let put_result = update_page(
         client,
         page_id,
@@ -640,7 +586,7 @@ async fn handle_edit_page(
             set_pages_status(app, msg, StatusStyle::Success);
         }
         Err(AppError::Api(msg)) if msg.starts_with("Conflict:") => {
-            // D-39: preserve temp file; status message includes the path
+            // Preserve the temp file so the user can recover their edits.
             set_pages_status(
                 app,
                 format!(

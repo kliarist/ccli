@@ -1,12 +1,5 @@
 //! TUI application state — App struct, AppState enum, key handlers, filter logic.
 //!
-//! Locked decisions implemented:
-//! - D-12: q always quits; Esc closes overlays (filter/modal) or quits at top-level
-//! - D-14: spaces pre-fetched; stored in Vec<Space>
-//! - D-15: real-time fuzzy filter on /; Esc closes and restores full list
-//! - D-16: nucleo-matcher for fuzzy matching on "{key} {name}" haystack
-//! - D-19: 150ms debounce before preview fetch; session cache in HashMap<String, SpaceDetail>
-//!
 //! No terminal I/O here — this module is testable without a real terminal.
 
 use std::collections::HashMap;
@@ -24,12 +17,10 @@ use crate::api::{AppError, Space, SpaceDetail};
 /// Spinner frames — text-only ASCII, 8 frames at 100ms interval (UI-SPEC Loading State).
 pub const SPINNER_FRAMES: &[&str] = &["◐", "◓", "◑", "◒", "◐", "◓", "◑", "◒"];
 
-/// Debounce period before preview detail is fetched (D-19).
 const PREVIEW_DEBOUNCE: Duration = Duration::from_millis(150);
 
-/// Status bar message overlay used by PagesBrowseState to display editor results
-/// (D-41: "Saved.", "Conflict: ...", "Error saving: ...").
-/// Cleared by the next navigation keypress in the event loop.
+/// Status bar message displayed after an edit attempt ("Saved.", "Conflict: ...", etc.).
+/// Cleared by the next navigation keypress.
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct StatusMessage {
@@ -40,9 +31,9 @@ pub struct StatusMessage {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StatusStyle {
-    Success, // Color::Green — D-41 "Saved."
-    Error,   // Color::Red   — D-39 "Conflict: ...", "Error saving: ..."
-    Info,    // Color::Reset — "Opening editor…"
+    Success,
+    Error,
+    Info,
 }
 
 /// TUI state machine variants (UI-SPEC State Machine section).
@@ -61,30 +52,18 @@ pub enum AppState {
 }
 
 /// Top-level application state — owns the space list, selection, filter, and preview cache.
-///
-/// Rule: no terminal I/O here. All state is pure Rust. render_spaces() reads this state.
 pub struct App {
-    /// All spaces pre-fetched from Confluence (D-14), sorted by key ascending.
     pub spaces: Vec<Space>,
-    /// Ratatui list selection + scroll offset tracker.
     pub list_state: ListState,
     /// Indices into self.spaces for the currently visible (filtered) list.
-    /// When filter is inactive: [0, 1, 2, ... N-1]. When active: subset sorted by score.
     pub filtered_indices: Vec<usize>,
-    /// Current TUI state machine variant.
     pub state: AppState,
-    /// In-session cache: SpaceKey → detail. Populated on selection settle (D-19).
     pub preview_cache: HashMap<String, SpaceDetail>,
-    /// Key for which a preview fetch is pending (set by tick() after debounce).
     pub pending_preview_key: Option<String>,
-    /// Timestamp of the last selection change (for 150ms debounce in tick()).
     pub last_selection_change: Option<Instant>,
-    /// Current spinner frame index (advances every 100ms tick during Loading state).
     pub spinner_frame: usize,
-    /// If a fetch error occurred, store for status bar rendering.
     pub error: Option<String>,
-    /// Phase 3 (D-31): screen navigation stack. Empty = single SpacesBrowse view.
-    /// Push PagesBrowse on Enter (D-30); pop on Esc with no overlay.
+    /// Screen navigation stack. Empty = SpacesBrowse. Push on Enter, pop on Esc.
     pub screen_stack: Vec<Screen>,
     /// Currently committed filter query ("" = no filter).
     pub active_filter: String,
@@ -110,8 +89,6 @@ impl App {
         }
     }
 
-    /// Test constructor: pre-load spaces without network fetch.
-    /// Use in unit tests to exercise state transitions without httpmock.
     #[cfg(test)]
     pub fn with_spaces(spaces: Vec<Space>) -> Self {
         let mut app = Self::new();
@@ -119,8 +96,6 @@ impl App {
         app
     }
 
-    /// Called when the initial space list fetch completes successfully.
-    /// Transitions to Browse state and initialises filtered_indices.
     pub fn set_spaces(&mut self, spaces: Vec<Space>) {
         self.spaces = spaces;
         self.filtered_indices = (0..self.spaces.len()).collect();
@@ -134,10 +109,7 @@ impl App {
         }
     }
 
-    /// Update spaces from a background refresh while preserving the current selection.
-    ///
-    /// Unlike `set_spaces`, this does not reset the selection to 0. It re-applies the
-    /// active filter and then restores the cursor to the previously-selected space key.
+    /// Update spaces while preserving cursor position, unlike `set_spaces` which resets to 0.
     pub fn refresh_spaces(&mut self, spaces: Vec<Space>) {
         let selected_key = self.selected_key();
         self.spaces = spaces;
@@ -222,16 +194,12 @@ impl App {
         }
     }
 
-    /// Apply fuzzy filter to spaces list (D-15, D-16).
-    ///
-    /// Uses nucleo-matcher on "{key} {name}" haystack. Empty query restores full list.
-    /// ALWAYS resets ListState to Some(0) or None to prevent index-out-of-bounds (Pitfall 5).
+    /// Apply fuzzy filter using nucleo-matcher on "{key} {name}" haystack.
+    /// Always resets ListState to Some(0) or None to prevent stale-index panics.
     pub fn apply_filter(&mut self, query: &str) {
         if query.is_empty() {
-            // Restore full list
             self.filtered_indices = (0..self.spaces.len()).collect();
         } else {
-            // D-16: nucleo-matcher fuzzy match on "{key} {name}" combined haystack
             let mut matcher = Matcher::new(NucleoConfig::DEFAULT);
             let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
             let haystacks: Vec<String> = self
@@ -249,8 +217,7 @@ impl App {
 
             // Recover original indices — use a mutable "remaining" list to consume
             // matches one-for-one, preserving correct indices for duplicate haystacks.
-            // CR-03: the old `position()` approach always returned the FIRST match for
-            // equal strings, causing duplicates or dropped items when titles are identical.
+            // Use a mutable "remaining" list rather than position() to handle duplicate titles correctly.
             let mut remaining: Vec<(usize, String)> = haystacks
                 .iter()
                 .enumerate()
@@ -266,7 +233,6 @@ impl App {
                 .collect();
         }
 
-        // Pitfall 5: always reset selection to prevent stale index panic
         if self.filtered_indices.is_empty() {
             self.list_state.select(None);
         } else {
@@ -280,7 +246,6 @@ impl App {
         // Advance spinner frame
         self.spinner_frame = (self.spinner_frame + 1) % SPINNER_FRAMES.len();
 
-        // D-19: if selection settled for 150ms, mark preview fetch as pending
         if let Some(t) = self.last_selection_change {
             if t.elapsed() >= PREVIEW_DEBOUNCE {
                 self.last_selection_change = None;
@@ -293,17 +258,6 @@ impl App {
         }
     }
 
-    /// Handle a keypress. Returns true if the TUI should quit.
-    ///
-    /// Key routing per D-12 and UI-SPEC Keyboard Interaction Contract:
-    /// - `q` always quits (any state)
-    /// - `Esc` in Filter/Modal → close overlay; at Browse with no overlay → quit
-    /// - Navigation (j/k/arrows/g/G) navigate the filtered list
-    /// - `/` opens Filter overlay
-    /// - `?` opens Modal
-    /// - `o` triggers browser open (returns pending_browser_url for caller to open)
-    /// - Printable chars in Filter mode append to query and re-filter
-    /// - Backspace in Filter mode deletes last char and re-filters
     pub fn handle_key(&mut self, key: KeyCode) -> KeyAction {
         match &self.state.clone() {
             AppState::Loading => {
@@ -424,38 +378,24 @@ impl App {
     }
 }
 
-/// TUI navigation stack frame (D-31).
-///
-/// Only the top of the stack is rendered. Push on Enter (D-30), pop on Esc
-/// with no overlay open. Spaces base screen lives below `screen_stack` itself
-/// (an empty stack means SpacesBrowse).
+/// Navigation stack frame. Only the top is rendered; empty stack means SpacesBrowse.
 #[allow(dead_code)]
-#[allow(clippy::enum_variant_names)] // All variants intentionally named *Browse (D-48, D-61)
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 pub enum Screen {
-    /// Original Phase 2 spaces list. Implicit when `App::screen_stack` is empty;
-    /// also used explicitly when entering the TUI directly into spaces.
     SpacesBrowse,
-    /// Pages or blog posts list for one space (D-30, D-37).
     PagesBrowse {
         space_key: String,
         content_type: ContentType,
         state: Box<PagesBrowseState>,
     },
-    /// Page-level comments browse view (D-48). Pushed when user presses 'c'
-    /// on a selected page in PagesBrowse.
     CommentsBrowse {
         page_id: String,
         state: Box<CommentsBrowseState>,
     },
 }
 
-/// Per-screen state for a Pages or Blog Posts browse view (D-31, D-44).
-///
-/// Mirrors App's state shape one-for-one — pages instead of spaces, page IDs
-/// instead of space keys for cache and selection. Owns its own filter, list,
-/// preview cache, and status. Owned by Screen::PagesBrowse so multiple drilled-in
-/// screens preserve scroll/filter state independently.
+/// Per-screen state for a Pages or Blog Posts browse view.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct PagesBrowseState {
@@ -520,10 +460,7 @@ impl PagesBrowseState {
         self.error = Some(err.to_string());
     }
 
-    /// Update pages from a background refresh while preserving the current selection.
-    ///
-    /// Used when pages were pre-loaded from disk cache: the network result arrives
-    /// later and updates the list without resetting the user's cursor position.
+    /// Update pages while preserving cursor position, unlike `set_pages` which resets to 0.
     pub fn refresh_pages(&mut self, pages: Vec<Page>) {
         let selected_id = self.selected_id();
         self.pages = pages;
@@ -608,8 +545,7 @@ impl PagesBrowseState {
         }
     }
 
-    /// D-44: filter on TITLE only (not key+name like spaces).
-    /// Pitfall 3: ALWAYS reset list_state.select to Some(0) or None.
+    /// Filter on title only (not key+name like the spaces filter).
     pub fn apply_filter(&mut self, query: &str) {
         if query.is_empty() {
             self.filtered_indices = (0..self.pages.len()).collect();
@@ -622,8 +558,7 @@ impl PagesBrowseState {
                 .into_iter()
                 .map(|(s, score)| (s.to_owned(), score))
                 .collect();
-            // CR-03: use a mutable "remaining" list to consume matches one-for-one,
-            // preserving correct indices when two pages share an identical title.
+            // Use a mutable "remaining" list to handle duplicate page titles correctly.
             let mut remaining: Vec<(usize, String)> = haystacks
                 .iter()
                 .enumerate()
@@ -668,10 +603,8 @@ impl PagesBrowseState {
         self.status_message = None;
     }
 
-    /// Pages-screen key handler — UI-SPEC Pages Browse keybinding table.
-    /// D-30 Esc → PopScreen; D-32 Enter/o → OpenBrowser(id); D-41 e → EditPage(id).
     pub fn handle_key(&mut self, key: KeyCode) -> KeyAction {
-        // Any navigation key clears a transient status message (D-41 ephemeral "Saved.")
+        // Any navigation key clears a transient status message.
         let clears_status = matches!(
             key,
             KeyCode::Char('j')
@@ -1553,7 +1486,7 @@ mod tests {
 
     #[test]
     fn pages_state_apply_filter_matches_by_title_only_d44() {
-        // D-44: filter on title, NOT id. Searching for the id "1" should NOT match.
+        // Filter on title, NOT id. Searching for the id "1" should NOT match.
         let mut s = PagesBrowseState::with_pages(
             "DEV",
             ContentType::Page,
@@ -1578,7 +1511,7 @@ mod tests {
 
     #[test]
     fn pages_state_handle_key_enter_returns_open_browser_with_webui_path_d32_wr02() {
-        // WR-02: OpenBrowser must carry the webui PATH (e.g. "/x/99"), not the page id.
+        // OpenBrowser must carry the webui PATH (e.g. "/x/99"), not the page id.
         // make_page builds webui = Some("/x/{id}").
         let mut s =
             PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("99", "Alpha")]);

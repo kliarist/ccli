@@ -472,7 +472,7 @@ mod tests {
 
     #[test]
     fn blog_create_with_parent_flag_fails_pitfall5() {
-        // Pitfall 5 + D-37: blog posts have no parent. The --parent flag must NOT exist on BlogCommands::Create.
+        // Blog posts have no parent — the --parent flag must NOT exist on BlogCommands::Create.
         let result = Cli::try_parse_from([
             "ccli", "blog", "create", "--space", "DEV", "--title", "Hi", "--parent", "99",
         ]);

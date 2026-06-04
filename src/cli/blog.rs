@@ -1,9 +1,4 @@
-//! `ccli blog` subcommand handlers.
-//!
-//! Locked decisions implemented:
-//! - D-37: exact mirror of `ccli page` with ContentType::BlogPost
-//! - Pitfall 5: no `--parent` flag — blog posts have no parent (enforced at the type
-//!   level: `BlogCommands::Create` has no `parent` field)
+//! `ccli blog` subcommand handlers — delegates to page handlers with ContentType::BlogPost.
 
 use crate::api::page::ContentType;
 use crate::cli::page;
@@ -18,7 +13,6 @@ pub async fn run(cli: &Cli, args: &BlogArgs) -> anyhow::Result<()> {
         }
         BlogCommands::View { post_id } => page::handle_view_typed(post_id).await,
         BlogCommands::Create { space, title } => {
-            // Pitfall 5: parent is None for blog posts.
             page::handle_create_typed(
                 space.as_deref(),
                 title.as_deref(),

@@ -1,10 +1,4 @@
 //! `ccli space list` non-interactive handler.
-//!
-//! Locked decisions implemented:
-//! - D-11: ccli space list ALWAYS prints a table — never opens the TUI.
-//! - D-17: fetches every page of /rest/api/space (same walk as D-14 TUI pre-fetch).
-//!
-//! Output uses OutputFormatter so --plain, --no-headers, --columns work for free (OUT-01..04).
 
 use anyhow::Context;
 

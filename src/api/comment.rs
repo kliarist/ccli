@@ -1,12 +1,6 @@
 //! Confluence Content API client — page comments.
 //!
-//! Locked decisions implemented:
-//! - D-50: list_comments fetches body.storage + version for preview rendering
-//! - D-51, D-52: add_comment accepts pre-wrapped storage XML (caller wraps plain text)
-//!
-//! Security:
-//! - PAT NEVER appears in tracing output. #[instrument(skip(client))] on every async fn.
-//! - All errors map to existing AppError variants (Auth/Network/Api) — no new variants.
+//! Security: PAT never appears in tracing output; #[instrument(skip(client))] on every async fn.
 
 use serde::Deserialize;
 use tracing::instrument;
@@ -67,8 +61,6 @@ struct CommentListResponse {
 }
 
 /// GET /rest/api/content/{page_id}/child/comment?expand=body.storage,version&limit=50
-/// Returns a Vec<Comment> in the order Confluence returns them.
-/// Limit fixed at 50 for v1 (D-50; CONTEXT.md: comments don't paginate aggressively).
 #[allow(dead_code)]
 #[instrument(skip(client))]
 pub async fn list_comments(client: &Client, page_id: &str) -> Result<Vec<Comment>, AppError> {
@@ -77,7 +69,6 @@ pub async fn list_comments(client: &Client, page_id: &str) -> Result<Vec<Comment
         client.base_url().trim_end_matches('/'),
         page_id,
     );
-    // WR-05: .query() builder percent-encodes all values
     let resp = client
         .inner()
         .get(&url)

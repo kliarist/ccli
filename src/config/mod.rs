@@ -9,9 +9,8 @@ use std::path::Path;
 use crate::api::error::AppError;
 use path::config_path;
 
-/// Single-profile config (D-09): one URL + one token, flat schema.
-/// `email` is only present for Confluence Cloud (*.atlassian.net) instances,
-/// where authentication uses Basic Auth (email + API token) instead of Bearer PAT.
+/// Single-profile config: one URL + one token.
+/// `email` is only present for Confluence Cloud (*.atlassian.net) — Basic Auth (email + API token) vs Bearer PAT.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub url: String,
@@ -20,36 +19,27 @@ pub struct Config {
     pub email: Option<String>,
 }
 
-/// Load config from the canonical path with `CCLI_URL` / `CCLI_TOKEN` env var overlay (INIT-03).
+/// Load config from the canonical path with `CCLI_URL` / `CCLI_TOKEN` env var overlay.
 ///
-/// Precedence (W-06 fix — natural reading of ROADMAP success criterion 2 "User can override
-/// config by setting CCLI_URL and CCLI_TOKEN"):
+/// Precedence:
 /// - file exists, env unset       -> Some(file_config)
 /// - file exists, env set         -> Some(file_config) with env values overlaid (env wins)
-/// - no file, both env vars set   -> Some(synthesized config from env)        [env-only mode]
+/// - no file, both env vars set   -> Some(synthesized config from env)
 /// - no file, partial/empty env   -> None
 /// - no file, no env              -> None
-///
-/// `load_or_error` converts None into AppError::Config.
 pub fn load() -> anyhow::Result<Option<Config>> {
     let path = config_path()?;
     load_from(&path)
 }
 
 /// Testable variant of `load()` accepting an explicit path.
-///
-/// Implements the W-06 env-only synthesis branch: when the file does not exist but
-/// BOTH `CCLI_URL` and `CCLI_TOKEN` are set to non-empty values, return a Config
-/// built from the env vars. This makes "User can override config by setting CCLI_URL
-/// and CCLI_TOKEN" (ROADMAP success criterion 2) work without a pre-existing file.
 pub(crate) fn load_from(path: &Path) -> anyhow::Result<Option<Config>> {
     let env_url = std::env::var("CCLI_URL").ok().filter(|s| !s.is_empty());
     let env_token = std::env::var("CCLI_TOKEN").ok().filter(|s| !s.is_empty());
     let env_email = std::env::var("CCLI_EMAIL").ok().filter(|s| !s.is_empty());
 
     if !path.exists() {
-        // W-06: env-only synthesis. Both vars must be present and non-empty;
-        // a partial environment is not sufficient and falls through to None.
+        // Both vars must be present and non-empty; a partial environment falls through to None.
         return Ok(match (env_url, env_token) {
             (Some(url), Some(token)) => Some(Config {
                 url,
@@ -63,7 +53,7 @@ pub(crate) fn load_from(path: &Path) -> anyhow::Result<Option<Config>> {
     let content = fs::read_to_string(path)?;
     let mut config: Config = toml::from_str(&content)?;
 
-    // Env var overrides (INIT-03) — only non-empty values override.
+    // Env vars override file values; only non-empty values apply.
     if let Some(url) = env_url {
         config.url = url;
     }
@@ -76,10 +66,7 @@ pub(crate) fn load_from(path: &Path) -> anyhow::Result<Option<Config>> {
     Ok(Some(config))
 }
 
-/// Save config atomically and restrict permissions to owner-only on Unix.
-///
-/// Atomic write (Pitfall 6): write to `<path>.tmp` then `rename` to final path.
-/// Permissions (Security ASVS V2): `chmod 0o600` on Unix after rename.
+/// Save config atomically (write to `.tmp`, then rename) with 0o600 permissions on Unix.
 pub fn save(config: &Config) -> anyhow::Result<()> {
     let path = config_path()?;
     save_to(&path, config)
@@ -104,20 +91,13 @@ pub(crate) fn save_to(path: &Path, config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Load config or return `AppError::Config` with a clear remediation message.
-///
-/// Used by every command that requires Confluence credentials. Plan 05 init
-/// uses `load()` directly because absence is an expected branch there.
+/// Load config or return `AppError::Config` with a remediation message.
 pub fn load_or_error() -> Result<Config, AppError> {
     let path = config_path().map_err(|e| AppError::Config(e.to_string()))?;
     load_or_error_from(&path)
 }
 
-/// Testable variant of `load_or_error()` accepting an explicit path (W-05 fix).
-///
-/// The public `load_or_error()` is a thin wrapper around this helper, so tests
-/// can exercise the AppError mapping with a TempDir-based path and never need
-/// to mutate `$HOME`.
+/// Testable variant of `load_or_error()` accepting an explicit path.
 pub(crate) fn load_or_error_from(path: &Path) -> Result<Config, AppError> {
     load_from(path)
         .map_err(|e| AppError::Config(e.to_string()))?
@@ -271,8 +251,6 @@ mod tests {
 
     #[test]
     fn load_or_error_from_returns_config_variant_when_missing() {
-        // W-05 fix: test load_or_error_from directly with a TempDir path,
-        // no HOME mutation required.
         let _g = ENV_LOCK.lock().unwrap();
         let _iso = EnvIsolation::new();
         let dir = TempDir::new().unwrap();

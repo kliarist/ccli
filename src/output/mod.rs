@@ -1,10 +1,6 @@
 //! Output subsystem: TTY-aware dispatch between aligned table and bare TSV.
 //!
-//! Locked decisions implemented:
-//! - D-06 TTY auto-detect: TTY → table, piped → TSV (no `--plain` required).
-//!   `--plain` still forces TSV even when stdout is a TTY.
-//! - D-07 `--columns` takes comma-separated names: `--columns key,name,status`.
-//! - OUT-01..OUT-04 requirements wired end-to-end through `OutputFormatter::print`.
+//! TTY → table; piped → TSV. `--plain` forces TSV even on a TTY.
 
 pub mod table;
 pub mod tsv;
