@@ -11,7 +11,7 @@ use dialoguer::Input;
 use crate::api::page::{
     create_page, get_page_detail, list_all_pages, update_page, ContentType, PageDetail,
 };
-use crate::api::{AppError, Client};
+use crate::api::{map_network_error, AppError, Client};
 use crate::cli::{sanitize_id, Cli, PageArgs, PageCommands};
 use crate::config;
 use crate::output::{strip_storage_xml, OutputFormatter};
@@ -327,13 +327,7 @@ pub async fn handle_search(cli: &Cli, cql: &str, limit: u32) -> anyhow::Result<(
         ])
         .send()
         .await
-        .map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                AppError::Network(format!("Cannot reach server: {}", e))
-            } else {
-                AppError::Network(e.to_string())
-            }
-        })?;
+        .map_err(map_network_error)?;
 
     let status = resp.status().as_u16();
     let parsed: SearchResponse = match status {

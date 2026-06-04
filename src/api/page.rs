@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
 
 use crate::api::client::Client;
-use crate::api::error::AppError;
+use crate::api::error::{map_network_error, AppError};
 
 /// Whether a Confluence content item is a page or a blog post.
 ///
@@ -159,13 +159,7 @@ pub async fn list_all_pages(
             ])
             .send()
             .await
-            .map_err(|e| {
-                if e.is_connect() || e.is_timeout() {
-                    AppError::Network(format!("Cannot reach server: {}", e))
-                } else {
-                    AppError::Network(e.to_string())
-                }
-            })?;
+            .map_err(map_network_error)?;
 
         match resp.status().as_u16() {
             200 => {

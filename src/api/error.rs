@@ -14,3 +14,11 @@ pub enum AppError {
     #[error("API error: {0}")]
     Api(String),
 }
+
+pub fn map_network_error(e: reqwest::Error) -> AppError {
+    if e.is_connect() || e.is_timeout() {
+        AppError::Network(format!("Cannot reach server: {}", e))
+    } else {
+        AppError::Network(e.to_string())
+    }
+}

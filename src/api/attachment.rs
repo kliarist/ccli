@@ -17,7 +17,7 @@ use serde::Deserialize;
 use tracing::instrument;
 
 use crate::api::client::Client;
-use crate::api::error::AppError;
+use crate::api::error::{map_network_error, AppError};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -72,13 +72,7 @@ pub async fn list_attachments(client: &Client, page_id: &str) -> Result<Vec<Atta
         .query(&[("limit", "50")])
         .send()
         .await
-        .map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                AppError::Network(format!("Cannot reach server: {}", e))
-            } else {
-                AppError::Network(e.to_string())
-            }
-        })?;
+        .map_err(map_network_error)?;
     match resp.status().as_u16() {
         200 => {
             let parsed: AttachmentListResponse = resp
@@ -191,13 +185,7 @@ pub async fn add_attachment(
         .multipart(form)
         .send()
         .await
-        .map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                AppError::Network(format!("Cannot reach server: {}", e))
-            } else {
-                AppError::Network(e.to_string())
-            }
-        })?;
+        .map_err(map_network_error)?;
     match resp.status().as_u16() {
         200 | 201 => Ok(()),
         401 | 403 => Err(AppError::Auth(
