@@ -1,6 +1,6 @@
 [package]
 name = "ccli"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 description = "Confluence Data Center CLI"
 license = "MIT"
