@@ -151,4 +151,18 @@ mod tests {
             "plain anyhow error should not yield an AppError"
         );
     }
+
+    #[test]
+    fn handle_error_does_not_panic_for_any_variant() {
+        // stderr is not a terminal in tests — exercises the plain-text branch
+        handle_error(&AppError::Auth("auth error".into()));
+        handle_error(&AppError::Network("network error".into()));
+        handle_error(&AppError::Config("config error".into()));
+        handle_error(&AppError::Api("api error".into()));
+    }
+
+    #[test]
+    fn cli_styles_returns_without_panic() {
+        let _ = cli_styles();
+    }
 }

@@ -412,6 +412,24 @@ fn collapse_blank_lines(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ratatui::style::{Color, Modifier};
+
+    // ── strip_storage_xml helpers ──────────────────────────────────────────────
+
+    fn all_text(lines: &[Line<'_>]) -> String {
+        lines
+            .iter()
+            .flat_map(|l| l.spans.iter())
+            .map(|s| s.content.as_ref())
+            .collect()
+    }
+
+    fn lines_text(lines: &[Line<'_>]) -> Vec<String> {
+        lines
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+            .collect()
+    }
 
     #[test]
     fn heading_h1_uppercased_with_blank_line() {
@@ -524,5 +542,243 @@ mod tests {
     #[test]
     fn collapse_blank_lines_helper_preserves_double_newline() {
         assert_eq!(collapse_blank_lines("a\n\nb"), "a\n\nb");
+    }
+
+    #[test]
+    fn numeric_char_ref_decoded_in_strip() {
+        let out = strip_storage_xml("<p>&#60;</p>");
+        assert!(
+            out.contains('<'),
+            "numeric char ref not decoded; got: {:?}",
+            out
+        );
+    }
+
+    #[test]
+    fn self_closing_tag_no_panic_no_tag_name_in_output() {
+        let out = strip_storage_xml("<br/>");
+        assert!(
+            !out.contains("br"),
+            "tag name must not appear; got: {:?}",
+            out
+        );
+    }
+
+    // ── render_xml_to_lines ───────────────────────────────────────────────────
+
+    #[test]
+    fn render_empty_input_returns_no_lines() {
+        assert!(render_xml_to_lines("").is_empty());
+    }
+
+    #[test]
+    fn render_paragraph_text_and_trailing_blank() {
+        let lines = render_xml_to_lines("<p>hello</p>");
+        let texts = lines_text(&lines);
+        assert!(texts.contains(&"hello".to_string()), "got: {:?}", texts);
+        assert!(
+            texts.contains(&String::new()),
+            "blank must follow paragraph; got: {:?}",
+            texts
+        );
+    }
+
+    #[test]
+    fn render_h1_bold_magenta_double_bar_separator() {
+        let lines = render_xml_to_lines("<h1>Title</h1>");
+        assert!(lines.len() >= 2, "expected ≥2 lines; got {}", lines.len());
+
+        let title = &lines[0].spans[0];
+        assert_eq!(title.content, "Title");
+        assert_eq!(title.style.fg, Some(Color::Magenta));
+        assert!(title.style.add_modifier.contains(Modifier::BOLD));
+
+        let sep: String = lines[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(sep.contains('═'), "h1 separator must use ═; got: {:?}", sep);
+    }
+
+    #[test]
+    fn render_h2_bold_cyan_single_bar_separator() {
+        let lines = render_xml_to_lines("<h2>Section</h2>");
+        let title = &lines[0].spans[0];
+        assert_eq!(title.content, "Section");
+        assert_eq!(title.style.fg, Some(Color::Cyan));
+        assert!(title.style.add_modifier.contains(Modifier::BOLD));
+
+        let sep: String = lines[1].spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(
+            sep.contains('─') && !sep.contains('═'),
+            "h2 separator must use ─; got: {:?}",
+            sep
+        );
+    }
+
+    #[test]
+    fn render_h3_bold_yellow() {
+        let lines = render_xml_to_lines("<h3>Sub</h3>");
+        let title = &lines[0].spans[0];
+        assert_eq!(title.style.fg, Some(Color::Yellow));
+        assert!(title.style.add_modifier.contains(Modifier::BOLD));
+    }
+
+    #[test]
+    fn render_h4_h5_h6_yellow_bold() {
+        for tag in &["h4", "h5", "h6"] {
+            let xml = format!("<{tag}>text</{tag}>");
+            let lines = render_xml_to_lines(&xml);
+            let span = &lines[0].spans[0];
+            assert_eq!(span.style.fg, Some(Color::Yellow), "tag {tag}");
+            assert!(
+                span.style.add_modifier.contains(Modifier::BOLD),
+                "tag {tag}"
+            );
+        }
+    }
+
+    #[test]
+    fn render_ul_bullet_prefix() {
+        let lines = render_xml_to_lines("<ul><li>item one</li></ul>");
+        let text = all_text(&lines);
+        assert!(text.contains('•'), "bullet missing; got: {:?}", text);
+        assert!(
+            text.contains("item one"),
+            "item text missing; got: {:?}",
+            text
+        );
+    }
+
+    #[test]
+    fn render_ol_numbered_items() {
+        let lines = render_xml_to_lines("<ol><li>first</li><li>second</li></ol>");
+        let text = all_text(&lines);
+        assert!(text.contains("1."), "first number missing; got: {:?}", text);
+        assert!(
+            text.contains("2."),
+            "second number missing; got: {:?}",
+            text
+        );
+        assert!(text.contains("first"), "item text missing; got: {:?}", text);
+        assert!(
+            text.contains("second"),
+            "item text missing; got: {:?}",
+            text
+        );
+    }
+
+    #[test]
+    fn render_inline_code_green() {
+        let lines = render_xml_to_lines("<code>x = 1</code>");
+        let span = lines
+            .iter()
+            .flat_map(|l| l.spans.iter())
+            .find(|s| s.content.as_ref() == "x = 1")
+            .expect("code span not found");
+        assert_eq!(span.style.fg, Some(Color::Green));
+    }
+
+    #[test]
+    fn render_pre_block_green_dim() {
+        let lines = render_xml_to_lines("<pre>code line</pre>");
+        let span = lines
+            .iter()
+            .flat_map(|l| l.spans.iter())
+            .find(|s| s.content.as_ref().contains("code line"))
+            .expect("pre span not found");
+        assert_eq!(span.style.fg, Some(Color::Green));
+        assert!(span.style.add_modifier.contains(Modifier::DIM));
+    }
+
+    #[test]
+    fn render_pre_multiline_each_source_line_separate() {
+        let lines = render_xml_to_lines("<pre>line1\nline2</pre>");
+        let text = all_text(&lines);
+        assert!(text.contains("line1"), "got: {:?}", text);
+        assert!(text.contains("line2"), "got: {:?}", text);
+    }
+
+    #[test]
+    fn render_br_flushes_current_line() {
+        let lines = render_xml_to_lines("<p>a<br/>b</p>");
+        let texts = lines_text(&lines);
+        assert!(texts.iter().any(|t| t == "a"), "got: {:?}", texts);
+        assert!(texts.iter().any(|t| t == "b"), "got: {:?}", texts);
+    }
+
+    #[test]
+    fn render_hr_self_closing_dash_separator() {
+        let lines = render_xml_to_lines("<hr/>");
+        let text = all_text(&lines);
+        assert!(text.contains('─'), "hr separator missing; got: {:?}", text);
+    }
+
+    #[test]
+    fn render_hr_end_tag_produces_separator() {
+        let lines = render_xml_to_lines("<hr></hr>");
+        let text = all_text(&lines);
+        assert!(
+            text.contains('─'),
+            "hr end-tag separator missing; got: {:?}",
+            text
+        );
+    }
+
+    #[test]
+    fn render_entity_amp_decoded() {
+        let lines = render_xml_to_lines("<p>&amp;</p>");
+        let text = all_text(&lines);
+        assert!(text.contains('&'), "& not decoded; got: {:?}", text);
+    }
+
+    #[test]
+    fn render_numeric_char_ref_decoded() {
+        let lines = render_xml_to_lines("<p>&#60;</p>");
+        let text = all_text(&lines);
+        assert!(
+            text.contains('<'),
+            "numeric char ref not decoded; got: {:?}",
+            text
+        );
+    }
+
+    #[test]
+    fn render_malformed_xml_no_panic() {
+        let _ = render_xml_to_lines("<p>unclosed");
+        let _ = render_xml_to_lines("<<<");
+    }
+
+    #[test]
+    fn render_consecutive_blanks_collapsed_to_one() {
+        let lines = render_xml_to_lines("<p>a</p><p>b</p><p>c</p>");
+        let texts = lines_text(&lines);
+        let mut blank_run = 0u32;
+        for t in &texts {
+            if t.trim().is_empty() {
+                blank_run += 1;
+                assert!(
+                    blank_run <= 1,
+                    "consecutive blanks not collapsed: {:?}",
+                    texts
+                );
+            } else {
+                blank_run = 0;
+            }
+        }
+    }
+
+    #[test]
+    fn render_ac_namespace_tag_stripped_text_retained() {
+        let xml = r#"<ac:structured-macro ac:name="info"><ac:parameter>visible</ac:parameter></ac:structured-macro>"#;
+        let lines = render_xml_to_lines(xml);
+        let text = all_text(&lines);
+        assert!(
+            text.contains("visible"),
+            "inner text must be retained; got: {:?}",
+            text
+        );
+        assert!(
+            !text.contains("ac:"),
+            "namespace prefix must not appear; got: {:?}",
+            text
+        );
     }
 }

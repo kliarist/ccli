@@ -35,6 +35,11 @@ cargo clippy -- -D warnings
 
 # Format
 cargo fmt --all
+
+# Coverage (requires cargo-llvm-cov)
+cargo llvm-cov                              # terminal summary
+cargo llvm-cov --html && open target/llvm-cov/html/index.html  # HTML report
+cargo llvm-cov -- --test-threads=1 --nocapture  # debug a hanging test
 ```
 
 Config lives at `~/.config/ccli/config.toml`. Override with env vars `CCLI_URL` and `CCLI_TOKEN`. Enable debug logging with `RUST_LOG=debug`.
