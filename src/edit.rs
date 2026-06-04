@@ -108,8 +108,11 @@ pub fn run_edit_session(body_xml: &str, page_id: &str, raw: bool) -> anyhow::Res
 mod tests {
     use super::*;
 
+    static EDITOR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn run_edit_session_raw_returns_error_when_editor_missing() {
+        let _guard = EDITOR_LOCK.lock().unwrap();
         let path_guard = std::env::temp_dir().join("ccli-test-editor-fail.xml");
         std::env::set_var("EDITOR", "this-binary-does-not-exist-xyzzy-12345");
         let result = run_edit_session("<p>test</p>", "99999", true);
@@ -151,6 +154,7 @@ mod tests {
 
     #[test]
     fn run_edit_session_raw_returns_original_when_editor_is_true() {
+        let _guard = EDITOR_LOCK.lock().unwrap();
         // /bin/true exits 0 without modifying the file — content is preserved as-is.
         if !std::path::Path::new("/bin/true").exists() {
             return; // not a Unix system

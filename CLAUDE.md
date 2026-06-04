@@ -1,4 +1,4 @@
-# AGENTS.md
+# CLAUDE.md
 
 **ccli** — Confluence Data Center / Cloud CLI (Rust, async). Bare `ccli` launches a TUI; subcommands are non-interactive CLI.
 
