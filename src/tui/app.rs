@@ -134,6 +134,26 @@ impl App {
         }
     }
 
+    /// Update spaces from a background refresh while preserving the current selection.
+    ///
+    /// Unlike `set_spaces`, this does not reset the selection to 0. It re-applies the
+    /// active filter and then restores the cursor to the previously-selected space key.
+    pub fn refresh_spaces(&mut self, spaces: Vec<Space>) {
+        let selected_key = self.selected_key();
+        self.spaces = spaces;
+        let q = self.active_filter.clone();
+        self.apply_filter(&q);
+        if let Some(key) = selected_key {
+            if let Some(pos) = self
+                .filtered_indices
+                .iter()
+                .position(|&i| self.spaces.get(i).map(|s| s.key.as_str()) == Some(key.as_str()))
+            {
+                self.list_state.select(Some(pos));
+            }
+        }
+    }
+
     /// Called when the initial space list fetch fails.
     pub fn set_fetch_error(&mut self, err: &AppError) {
         self.state = AppState::Browse; // leave Loading so help bar renders
@@ -498,6 +518,26 @@ impl PagesBrowseState {
     pub fn set_fetch_error(&mut self, err: &AppError) {
         self.browse_state = AppState::Browse;
         self.error = Some(err.to_string());
+    }
+
+    /// Update pages from a background refresh while preserving the current selection.
+    ///
+    /// Used when pages were pre-loaded from disk cache: the network result arrives
+    /// later and updates the list without resetting the user's cursor position.
+    pub fn refresh_pages(&mut self, pages: Vec<Page>) {
+        let selected_id = self.selected_id();
+        self.pages = pages;
+        let q = self.active_filter.clone();
+        self.apply_filter(&q);
+        if let Some(id) = selected_id {
+            if let Some(pos) = self
+                .filtered_indices
+                .iter()
+                .position(|&i| self.pages.get(i).map(|p| p.id.as_str()) == Some(id.as_str()))
+            {
+                self.list_state.select(Some(pos));
+            }
+        }
     }
 
     pub fn cache_detail(&mut self, id: String, detail: PageDetail) {
@@ -989,6 +1029,86 @@ mod tests {
         assert_eq!(app.filtered_indices.len(), 2);
     }
 
+    // ── refresh_spaces ────────────────────────────────────────────────────────
+
+    #[test]
+    fn refresh_spaces_preserves_selected_key_after_update() {
+        let mut app = App::with_spaces(vec![
+            make_space("AAA", "Alpha"),
+            make_space("BBB", "Beta"),
+            make_space("CCC", "Gamma"),
+        ]);
+        // Select the second space (BBB)
+        app.list_state.select(Some(1));
+        assert_eq!(app.selected_key().as_deref(), Some("BBB"));
+
+        // Refresh with a new list that still contains BBB (plus a new entry)
+        app.refresh_spaces(vec![
+            make_space("AAA", "Alpha"),
+            make_space("BBB", "Beta renamed"),
+            make_space("CCC", "Gamma"),
+            make_space("DDD", "Delta"),
+        ]);
+        assert_eq!(
+            app.selected_key().as_deref(),
+            Some("BBB"),
+            "selection must follow BBB into the refreshed list"
+        );
+    }
+
+    #[test]
+    fn refresh_spaces_falls_back_to_position_zero_when_key_removed() {
+        let mut app = App::with_spaces(vec![make_space("AAA", "Alpha"), make_space("BBB", "Beta")]);
+        app.list_state.select(Some(1)); // BBB
+
+        // Refresh without BBB
+        app.refresh_spaces(vec![make_space("AAA", "Alpha"), make_space("CCC", "Gamma")]);
+        // BBB is gone; apply_filter resets to 0
+        assert_eq!(app.list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn refresh_spaces_with_no_prior_selection_selects_first() {
+        let mut app = App::new(); // no spaces, no selection
+        app.refresh_spaces(vec![make_space("AAA", "Alpha"), make_space("BBB", "Beta")]);
+        assert_eq!(app.list_state.selected(), Some(0));
+        assert_eq!(app.spaces.len(), 2);
+    }
+
+    #[test]
+    fn refresh_spaces_preserves_selection_through_active_filter() {
+        let mut app = App::with_spaces(vec![
+            make_space("DEV", "Development"),
+            make_space("HR", "Human Resources"),
+        ]);
+        // Commit filter showing only DEV
+        app.handle_key(crossterm::event::KeyCode::Char('/'));
+        app.handle_key(crossterm::event::KeyCode::Char('D'));
+        app.handle_key(crossterm::event::KeyCode::Char('E'));
+        app.handle_key(crossterm::event::KeyCode::Char('V'));
+        app.handle_key(crossterm::event::KeyCode::Enter);
+        assert_eq!(app.filtered_indices.len(), 1);
+        assert_eq!(app.selected_key().as_deref(), Some("DEV"));
+
+        // Refresh: DEV is still present, filter should be re-applied
+        app.refresh_spaces(vec![
+            make_space("DEV", "Development"),
+            make_space("HR", "HR"),
+            make_space("MKT", "Marketing"),
+        ]);
+        assert_eq!(app.selected_key().as_deref(), Some("DEV"));
+        assert_eq!(app.filtered_indices.len(), 1, "filter must be re-applied");
+    }
+
+    #[test]
+    fn refresh_spaces_with_empty_list_clears_selection() {
+        let mut app = App::with_spaces(vec![make_space("A", "Alpha")]);
+        app.list_state.select(Some(0));
+        app.refresh_spaces(vec![]);
+        assert!(app.list_state.selected().is_none());
+        assert!(app.spaces.is_empty());
+    }
+
     #[test]
     fn select_next_wraps_at_end() {
         let mut app = App::with_spaces(vec![make_space("A", "Alpha"), make_space("B", "Beta")]);
@@ -1285,6 +1405,120 @@ mod tests {
         assert_eq!(s.browse_state, AppState::Browse);
         assert_eq!(s.list_state.selected(), Some(0));
         assert_eq!(s.filtered_indices.len(), 2);
+    }
+
+    // ── refresh_pages ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn refresh_pages_preserves_selected_page_id_after_update() {
+        let mut s = PagesBrowseState::with_pages(
+            "DEV",
+            ContentType::Page,
+            vec![
+                make_page("1", "Alpha"),
+                make_page("2", "Beta"),
+                make_page("3", "Gamma"),
+            ],
+        );
+        // Select the second page (id "2")
+        s.list_state.select(Some(1));
+        assert_eq!(s.selected_id().as_deref(), Some("2"));
+
+        // Refresh with updated list that still contains page "2"
+        s.refresh_pages(vec![
+            make_page("1", "Alpha"),
+            make_page("2", "Beta updated"),
+            make_page("3", "Gamma"),
+            make_page("4", "Delta"),
+        ]);
+        assert_eq!(
+            s.selected_id().as_deref(),
+            Some("2"),
+            "selection must follow page id 2 into the refreshed list"
+        );
+    }
+
+    #[test]
+    fn refresh_pages_falls_back_to_position_zero_when_page_removed() {
+        let mut s = PagesBrowseState::with_pages(
+            "DEV",
+            ContentType::Page,
+            vec![make_page("1", "Alpha"), make_page("2", "Beta")],
+        );
+        s.list_state.select(Some(1)); // Beta
+
+        // Refresh without page "2"
+        s.refresh_pages(vec![make_page("1", "Alpha"), make_page("3", "Gamma")]);
+        // Page "2" gone; apply_filter resets to position 0
+        assert_eq!(s.list_state.selected(), Some(0));
+    }
+
+    #[test]
+    fn refresh_pages_with_no_prior_selection_selects_first() {
+        let mut s = PagesBrowseState::new("DEV".into(), ContentType::Page);
+        s.refresh_pages(vec![make_page("1", "Alpha"), make_page("2", "Beta")]);
+        assert_eq!(s.list_state.selected(), Some(0));
+        assert_eq!(s.pages.len(), 2);
+    }
+
+    #[test]
+    fn refresh_pages_with_empty_list_clears_selection() {
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
+        s.list_state.select(Some(0));
+        s.refresh_pages(vec![]);
+        assert!(s.list_state.selected().is_none());
+        assert!(s.pages.is_empty());
+    }
+
+    #[test]
+    fn refresh_pages_does_not_change_browse_state() {
+        let mut s =
+            PagesBrowseState::with_pages("DEV", ContentType::Page, vec![make_page("1", "Alpha")]);
+        assert_eq!(s.browse_state, AppState::Browse);
+        s.refresh_pages(vec![
+            make_page("1", "Alpha updated"),
+            make_page("2", "Beta"),
+        ]);
+        assert_eq!(
+            s.browse_state,
+            AppState::Browse,
+            "refresh must not change browse_state"
+        );
+    }
+
+    #[test]
+    fn refresh_pages_preserves_selection_through_active_filter() {
+        let mut s = PagesBrowseState::with_pages(
+            "DEV",
+            ContentType::Page,
+            vec![make_page("1", "Alpha"), make_page("2", "Zebra")],
+        );
+        // "lph" uniquely matches "Alpha" but not "Zebra"
+        s.handle_key(crossterm::event::KeyCode::Char('/'));
+        for c in "lph".chars() {
+            s.handle_key(crossterm::event::KeyCode::Char(c));
+        }
+        s.handle_key(crossterm::event::KeyCode::Enter);
+        assert_eq!(s.filtered_indices.len(), 1);
+        assert_eq!(s.selected_id().as_deref(), Some("1"));
+
+        // Refresh with an updated list; "lph" still matches only "Alpha"
+        s.refresh_pages(vec![
+            make_page("1", "Alpha"),
+            make_page("2", "Zebra"),
+            make_page("3", "Quux"),
+        ]);
+        assert_eq!(
+            s.selected_id().as_deref(),
+            Some("1"),
+            "selection must follow page id 1 through the active filter"
+        );
+        assert_eq!(
+            s.filtered_indices.len(),
+            1,
+            "filter must remain active after refresh"
+        );
     }
 
     #[test]

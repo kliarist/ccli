@@ -11,7 +11,7 @@
 //! - Token NEVER appears in tracing logs.
 //! - #[instrument(skip(client))] applied to all public async functions.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
 
 use crate::api::client::Client;
@@ -38,7 +38,7 @@ pub struct SpaceListLinks {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Space {
     pub id: u64,
     pub key: String,
@@ -50,7 +50,7 @@ pub struct Space {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct SpaceLinks {
     pub webui: Option<String>, // relative path e.g. "/display/DEV" — Pitfall 3
     #[serde(rename = "self")]
@@ -103,7 +103,7 @@ pub struct SpaceHomepage {
 pub async fn list_all_spaces(client: &Client) -> Result<Vec<Space>, AppError> {
     let mut all: Vec<Space> = Vec::new();
     let mut start = 0u32;
-    let limit = 25u32;
+    let limit = 250u32;
 
     let url = format!("{}/rest/api/space", client.base_url().trim_end_matches('/'));
 
@@ -284,40 +284,40 @@ mod tests {
     #[tokio::test]
     async fn list_all_spaces_paginates_until_no_next_link() {
         let server = MockServer::start();
-        // First page: 25 results, has _links.next
+        // First page: 250 results (full page), has _links.next
         server.mock(|when, then| {
             when.method(GET)
                 .path("/rest/api/space")
                 .query_param("start", "0");
             then.status(200).json_body(serde_json::json!({
-                "results": (0..25u32).map(|i| serde_json::json!({
-                    "id": i, "key": format!("SP{:02}", i), "name": format!("Space {}", i),
-                    "_links": {"webui": format!("/display/SP{:02}", i)}
+                "results": (0..250u32).map(|i| serde_json::json!({
+                    "id": i, "key": format!("SP{:03}", i), "name": format!("Space {}", i),
+                    "_links": {"webui": format!("/display/SP{:03}", i)}
                 })).collect::<Vec<_>>(),
-                "start": 0, "limit": 25, "size": 25,
-                "_links": {"next": "/rest/api/space?start=25&limit=25"}
+                "start": 0, "limit": 250, "size": 250,
+                "_links": {"next": "/rest/api/space?start=250&limit=250"}
             }));
         });
         // Second page: 2 results, no _links.next → stop
         server.mock(|when, then| {
             when.method(GET)
                 .path("/rest/api/space")
-                .query_param("start", "25");
+                .query_param("start", "250");
             then.status(200).json_body(serde_json::json!({
                 "results": [
-                    {"id": 25, "key": "ZA0", "name": "Extra 1", "_links": {"webui": "/display/ZA0"}},
-                    {"id": 26, "key": "ZA1", "name": "Extra 2", "_links": {"webui": "/display/ZA1"}},
+                    {"id": 250, "key": "ZA0", "name": "Extra 1", "_links": {"webui": "/display/ZA0"}},
+                    {"id": 251, "key": "ZA1", "name": "Extra 2", "_links": {"webui": "/display/ZA1"}},
                 ],
-                "start": 25, "limit": 25, "size": 2,
+                "start": 250, "limit": 250, "size": 2,
                 "_links": {}
             }));
         });
         let client = test_client(&server.base_url());
         let spaces = list_all_spaces(&client).await.expect("ok");
-        assert_eq!(spaces.len(), 27, "must collect both pages");
+        assert_eq!(spaces.len(), 252, "must collect both pages");
         // Result must be sorted by key ascending
-        assert_eq!(spaces[0].key, "SP00");
-        assert_eq!(spaces[26].key, "ZA1");
+        assert_eq!(spaces[0].key, "SP000");
+        assert_eq!(spaces[251].key, "ZA1");
     }
 
     #[tokio::test]

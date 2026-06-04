@@ -99,6 +99,16 @@ async fn run_app(
     spaces_rx: oneshot::Receiver<Result<Vec<Space>, AppError>>,
 ) -> anyhow::Result<()> {
     let mut app = App::new();
+
+    // Load spaces from disk cache immediately so the TUI shows data without waiting for the
+    // network. The background network fetch (spaces_rx) always runs and updates the list when
+    // it completes, so cached data is at most 5 minutes stale.
+    let mut spaces_from_cache = false;
+    if let Some(cached) = crate::cache::load_spaces(&base_url) {
+        app.set_spaces(cached);
+        spaces_from_cache = true;
+    }
+
     // WR-03: wrap in Option so we stop polling once the channel delivers its value.
     let mut spaces_rx: Option<oneshot::Receiver<Result<Vec<Space>, AppError>>> = Some(spaces_rx);
 
@@ -140,8 +150,24 @@ async fn run_app(
             if let Ok(fetch_result) = rx.try_recv() {
                 spaces_rx = None; // stop polling
                 match fetch_result {
-                    Ok(spaces) => app.set_spaces(spaces),
-                    Err(e) => app.set_fetch_error(&e),
+                    Ok(spaces) => {
+                        let base_clone = base_url.clone();
+                        let spaces_for_cache = spaces.clone();
+                        tokio::task::spawn_blocking(move || {
+                            crate::cache::save_spaces(&base_clone, &spaces_for_cache);
+                        });
+                        if spaces_from_cache {
+                            app.refresh_spaces(spaces);
+                        } else {
+                            app.set_spaces(spaces);
+                        }
+                    }
+                    Err(e) => {
+                        if !spaces_from_cache {
+                            app.set_fetch_error(&e);
+                        }
+                        // With cached data showing, network errors are silently ignored.
+                    }
                 }
             }
         }
@@ -164,8 +190,30 @@ async fn run_app(
                 {
                     if *sk == space_key {
                         match fetch_result {
-                            Ok(pages) => state.set_pages(pages),
-                            Err(ref e) => state.set_fetch_error(e),
+                            Ok(pages) => {
+                                let had_cached = !state.pages.is_empty();
+                                let base_clone = base_url.clone();
+                                let sk_clone = space_key.clone();
+                                let pages_for_cache = pages.clone();
+                                tokio::task::spawn_blocking(move || {
+                                    crate::cache::save_pages(
+                                        &base_clone,
+                                        &sk_clone,
+                                        &pages_for_cache,
+                                    );
+                                });
+                                if had_cached {
+                                    state.refresh_pages(pages);
+                                } else {
+                                    state.set_pages(pages);
+                                }
+                            }
+                            Err(ref e) => {
+                                if state.pages.is_empty() {
+                                    state.set_fetch_error(e);
+                                }
+                                // With cached data showing, network errors are silently ignored.
+                            }
                         }
                         break;
                     }
@@ -299,7 +347,9 @@ async fn run_app(
                             }
                         }
                         KeyAction::DrillDown(space_key) => {
-                            // D-30: push PagesBrowse and spawn list_all_pages fetch
+                            // D-30: push PagesBrowse and spawn list_all_pages fetch.
+                            // If a fresh disk cache exists for this space, populate it
+                            // immediately so the user sees content without a spinner.
                             let new_state = Box::new(PagesBrowseState::new(
                                 space_key.clone(),
                                 ContentType::Page,
@@ -309,6 +359,15 @@ async fn run_app(
                                 content_type: ContentType::Page,
                                 state: new_state,
                             });
+                            if let Some(cached_pages) =
+                                crate::cache::load_pages(&base_url, &space_key)
+                            {
+                                if let Some(Screen::PagesBrowse { state, .. }) =
+                                    app.screen_stack.last_mut()
+                                {
+                                    state.set_pages(cached_pages);
+                                }
+                            }
                             let fetch_client = client.clone();
                             let tx = pages_list_tx.clone();
                             let key_tag = space_key.clone();

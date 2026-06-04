@@ -13,7 +13,7 @@
 //! Security:
 //! - PAT NEVER appears in tracing output. #[instrument(skip(client))] on every async fn.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
 
 use crate::api::client::Client;
@@ -58,7 +58,7 @@ pub struct ContentListLinks {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Page {
     pub id: String,
     pub title: String,
@@ -71,7 +71,7 @@ pub struct Page {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PageVersion {
     pub number: u32,
     pub when: Option<String>,
@@ -79,21 +79,21 @@ pub struct PageVersion {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PageAuthor {
     #[serde(rename = "displayName")]
     pub display_name: Option<String>,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PageAncestor {
     pub id: String,
     pub title: Option<String>,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct PageLinks {
     pub webui: Option<String>,
     #[serde(rename = "self")]
@@ -152,7 +152,7 @@ pub async fn list_all_pages(
 ) -> Result<Vec<Page>, AppError> {
     let mut all: Vec<Page> = Vec::new();
     let mut start = 0u32;
-    let limit = 50u32;
+    let limit = 250u32;
 
     loop {
         // WR-05: use .query() builder so reqwest percent-encodes all values,
@@ -507,33 +507,33 @@ mod tests {
     #[tokio::test]
     async fn list_all_pages_paginates_until_no_next_link() {
         let server = MockServer::start();
-        // First page: 50 results with _links.next set
+        // First page: 250 results (full page) with _links.next set
         server.mock(|when, then| {
             when.method(GET)
                 .path("/rest/api/content")
                 .query_param("start", "0");
             then.status(200).json_body(serde_json::json!({
-                "results": (0u32..50).map(|i| serde_json::json!({
+                "results": (0u32..250).map(|i| serde_json::json!({
                     "id": i.to_string(),
                     "title": format!("Page {:03}", i),
                     "type": "page",
                     "_links": {"webui": format!("/x/{}", i)}
                 })).collect::<Vec<_>>(),
-                "start": 0, "limit": 50, "size": 50,
-                "_links": {"next": "/rest/api/content?start=50&limit=50"}
+                "start": 0, "limit": 250, "size": 250,
+                "_links": {"next": "/rest/api/content?start=250&limit=250"}
             }));
         });
         // Second page: 2 results, no _links.next → stop
         server.mock(|when, then| {
             when.method(GET)
                 .path("/rest/api/content")
-                .query_param("start", "50");
+                .query_param("start", "250");
             then.status(200).json_body(serde_json::json!({
                 "results": [
-                    {"id": "50", "title": "Zebra A", "type": "page", "_links": {}},
-                    {"id": "51", "title": "Zebra B", "type": "page", "_links": {}},
+                    {"id": "250", "title": "Zebra A", "type": "page", "_links": {}},
+                    {"id": "251", "title": "Zebra B", "type": "page", "_links": {}},
                 ],
-                "start": 50, "limit": 50, "size": 2,
+                "start": 250, "limit": 250, "size": 2,
                 "_links": {}
             }));
         });
@@ -541,10 +541,10 @@ mod tests {
         let pages = list_all_pages(&client, "DEV", ContentType::Page)
             .await
             .expect("ok");
-        assert_eq!(pages.len(), 52, "must collect both pages");
-        // Sorted: "Page 000" .. "Page 049" then "Zebra A", "Zebra B"
+        assert_eq!(pages.len(), 252, "must collect both pages");
+        // Sorted: "Page 000" .. "Page 249" then "Zebra A", "Zebra B"
         assert_eq!(pages[0].title, "Page 000");
-        assert_eq!(pages[51].title, "Zebra B");
+        assert_eq!(pages[251].title, "Zebra B");
     }
 
     // ── get_page_detail ───────────────────────────────────────────────────────

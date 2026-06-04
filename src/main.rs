@@ -2,6 +2,7 @@ use is_terminal::IsTerminal;
 use tracing_subscriber::EnvFilter;
 
 mod api;
+mod cache;
 mod cli;
 mod config;
 mod edit;
