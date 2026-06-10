@@ -36,3 +36,4 @@ quick-xml = "0.40"
 [dev-dependencies]
 tempfile = "3"
 httpmock = "0.7"
+cargo-husky = { version = "1", default-features = false, features = ["user-hooks"] }
