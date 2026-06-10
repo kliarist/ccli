@@ -21,4 +21,4 @@ jobs:
           check: false
 
       - name: Check commits in this PR
-        run: cog check ${{ github.event.pull_request.base.sha }}
+        run: cog check ${{ github.event.pull_request.base.sha }}..HEAD
