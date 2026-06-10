@@ -1,0 +1,51 @@
+name: Bump version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump strategy"
+        required: true
+        default: auto
+        type: choice
+        options: [auto, major, minor, patch]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump version and tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-edit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-edit
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - uses: cocogitto/cocogitto-action@v3
+        with:
+          check: false
+
+      - name: Bump version
+        run: |
+          if [ "${{ inputs.bump }}" = "auto" ]; then
+            cog bump --auto
+          else
+            cog bump --${{ inputs.bump }}
+          fi
+
+      - name: Push
+        run: git push --follow-tags origin main
