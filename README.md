@@ -111,6 +111,13 @@ Top-level help:
 ccli --help
 ```
 
+### Identity
+
+```bash
+# Show the configured Confluence URL and email
+ccli me
+```
+
 ### Spaces
 
 ```bash

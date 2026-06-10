@@ -51,6 +51,7 @@ async fn run() -> anyhow::Result<()> {
 
     match cli.command {
         Some(Commands::Init) => cli::init::run(&cli).await,
+        Some(Commands::Me) => cli::me::run(&cli).await,
         Some(Commands::Space(ref args)) => match args.command {
             SpaceCommands::List => cli::space::run(&cli, args).await,
         },

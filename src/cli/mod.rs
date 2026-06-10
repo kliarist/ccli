@@ -12,6 +12,7 @@ pub mod attachment;
 pub mod blog;
 pub mod comment;
 pub mod init;
+pub mod me;
 pub mod page;
 pub mod space;
 
@@ -41,6 +42,8 @@ pub struct Cli {
 pub enum Commands {
     /// Configure Confluence URL and Personal Access Token interactively.
     Init,
+    /// Display the configured Confluence user (URL and email).
+    Me,
     /// List and browse Confluence spaces.
     Space(SpaceArgs),
     /// List, view, create, or edit Confluence pages (D-34..D-38, D-41).
@@ -265,6 +268,12 @@ mod tests {
         assert!(!cli.plain);
         assert!(!cli.no_headers);
         assert!(cli.columns.is_none());
+    }
+
+    #[test]
+    fn parses_me_subcommand() {
+        let cli = Cli::try_parse_from(["ccli", "me"]).expect("parse");
+        assert!(matches!(cli.command, Some(Commands::Me)));
     }
 
     #[test]
