@@ -25,6 +25,8 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install cargo-edit
         uses: taiki-e/install-action@v2
         with:
