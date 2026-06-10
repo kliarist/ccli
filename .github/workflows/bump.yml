@@ -37,7 +37,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - uses: cocogitto/cocogitto-action@v3
+      - uses: cocogitto/cocogitto-action@v4
         with:
           check: false
 
