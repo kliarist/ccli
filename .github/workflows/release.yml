@@ -39,7 +39,7 @@ jobs:
         run: cog changelog --at ${{ github.event.inputs.tag || github.ref_name }} > release-notes.md
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           body_path: release-notes.md
@@ -111,7 +111,7 @@ jobs:
           "ASSET=$archive" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Upload to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           files: ${{ env.ASSET }}
