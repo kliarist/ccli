@@ -1,11 +1,13 @@
+ignore_merge_commits = true
+
+pre_bump_hooks = [
+    "cargo set-version {{version}}",
+    "cargo check --quiet"
+]
+
 [changelog]
 path = "CHANGELOG.md"
 template = "remote"
 remote = "github.com"
 repository = "ccli"
 owner = "kliarist"
-
-pre_bump_hooks = [
-    "cargo set-version {{version}}",
-    "cargo check --quiet"
-]

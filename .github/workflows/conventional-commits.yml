@@ -17,3 +17,8 @@ jobs:
           fetch-depth: 0
 
       - uses: cocogitto/cocogitto-action@v3
+        with:
+          check: false
+
+      - name: Check commits in this PR
+        run: cog check ${{ github.event.pull_request.base.sha }}..HEAD
