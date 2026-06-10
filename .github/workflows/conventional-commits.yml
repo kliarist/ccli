@@ -1,0 +1,19 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    name: Validate commit messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: cocogitto/cocogitto-action@v3
